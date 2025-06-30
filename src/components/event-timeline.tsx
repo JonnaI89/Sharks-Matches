@@ -1,5 +1,5 @@
 import type { MatchEvent } from "@/lib/types";
-import { Futbol, Square } from "lucide-react";
+import { Goal, Square } from "lucide-react";
 import { teams } from "@/lib/mock-data";
 
 interface EventTimelineProps {
@@ -29,7 +29,7 @@ export function EventTimeline({ events }: EventTimelineProps) {
           <div className="flex-shrink-0">
             {event.type === 'goal' ? (
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 dark:bg-green-900">
-                <Futbol className="h-5 w-5 text-green-600 dark:text-green-400" />
+                <Goal className="h-5 w-5 text-green-600 dark:text-green-400" />
               </span>
             ) : (
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-yellow-100 dark:bg-yellow-900">
