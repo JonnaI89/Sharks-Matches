@@ -1,0 +1,53 @@
+export interface Team {
+  id: string;
+  name: string;
+  logo: string;
+}
+
+export interface Player {
+  id: string;
+  name: string;
+  number: number;
+  isGoalie?: boolean;
+  stats: {
+    goals: number;
+    assists: number;
+    penalties: number;
+  };
+}
+
+export interface GoalEvent {
+  type: 'goal';
+  id: string;
+  teamId: string;
+  scorer: Player;
+  assist?: Player;
+  time: string; // e.g., "15:34"
+  period: number;
+}
+
+export interface PenaltyEvent {
+  type: 'penalty';
+  id: string;
+  teamId: string;
+  player: Player;
+  duration: number; // in minutes
+  time: string;
+  period: number;
+}
+
+export type MatchEvent = GoalEvent | PenaltyEvent;
+
+export interface Match {
+  id: string;
+  status: 'upcoming' | 'live' | 'finished';
+  teamA: Team;
+  teamB: Team;
+  scoreA: number;
+  scoreB: number;
+  period: number;
+  time: string; // current match time
+  events: MatchEvent[];
+  rosterA: Player[];
+  rosterB: Player[];
+}
