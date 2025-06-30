@@ -77,16 +77,24 @@ export default function AdminMatchPage() {
         setMatch(prevMatch => {
           if (!prevMatch) return null;
           const [minutes, seconds] = prevMatch.time.split(':').map(Number);
-          let newSeconds = seconds - 1;
+          
+          if (minutes >= 20) {
+              setIsRunning(false);
+              return { ...prevMatch, time: "20:00" };
+          }
+
+          let newSeconds = seconds + 1;
           let newMinutes = minutes;
-          if (newSeconds < 0) {
-            newSeconds = 59;
-            newMinutes -= 1;
+          if (newSeconds > 59) {
+            newSeconds = 0;
+            newMinutes += 1;
           }
-          if (newMinutes < 0) {
-            setIsRunning(false);
-            return { ...prevMatch, time: "00:00" };
+
+          if (newMinutes >= 20) {
+             setIsRunning(false);
+             return { ...prevMatch, time: "20:00" };
           }
+          
           return {
             ...prevMatch,
             time: `${String(newMinutes).padStart(2, '0')}:${String(newSeconds).padStart(2, '0')}`
@@ -251,8 +259,11 @@ export default function AdminMatchPage() {
     let newPeriod = parseInt(editablePeriod, 10);
 
     if (isNaN(newMinutes) || newMinutes < 0) newMinutes = 0;
+    if (newMinutes > 20) newMinutes = 20;
     if (isNaN(newSeconds) || newSeconds < 0 || newSeconds > 59) newSeconds = 0;
     if (isNaN(newPeriod) || newPeriod < 1) newPeriod = 1;
+
+    if (newMinutes === 20) newSeconds = 0;
 
     setMatch(prev => ({
         ...prev!,
@@ -267,12 +278,12 @@ export default function AdminMatchPage() {
         if (!prevMatch || prevMatch.status === 'finished') return prevMatch;
         
         if (prevMatch.period >= 3) {
-            return { ...prevMatch, time: "00:00", status: 'finished' };
+            return { ...prevMatch, time: "20:00", status: 'finished' };
         }
         return {
             ...prevMatch,
             period: prevMatch.period + 1,
-            time: "20:00"
+            time: "00:00"
         };
     });
   };
