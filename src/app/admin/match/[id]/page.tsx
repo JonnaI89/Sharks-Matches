@@ -3,14 +3,16 @@
 import { useState, useEffect } from "react";
 import { notFound, useParams } from "next/navigation";
 import { matches as mockMatches } from "@/lib/mock-data";
-import type { Match, Player } from "@/lib/types";
+import type { Match, Player, GoalEvent, PenaltyEvent } from "@/lib/types";
 import { Scoreboard } from "@/components/scoreboard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Shield, Play, Pause, Square } from "lucide-react";
+import { PlusCircle, Shield, Play, Pause, Square, MinusCircle } from "lucide-react";
 import { AddGoalDialog } from "@/components/admin/add-goal-dialog";
 import { AddPenaltyDialog } from "@/components/admin/add-penalty-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 function RosterTable({ teamName, players }: { teamName: string; players: Player[] }) {
     return (
@@ -44,13 +46,29 @@ function RosterTable({ teamName, players }: { teamName: string; players: Player[
     )
 }
 
-
 export default function AdminMatchPage() {
   const params = useParams();
   const matchData = mockMatches.find((m) => m.id === params.id);
 
-  const [match, setMatch] = useState<Match | null>(matchData || null);
+  const [match, setMatch] = useState<Match | null>(matchData ? JSON.parse(JSON.stringify(matchData)) : null);
   const [isRunning, setIsRunning] = useState(false);
+  
+  const [editableMinutes, setEditableMinutes] = useState("00");
+  const [editableSeconds, setEditableSeconds] = useState("00");
+  const [editablePeriod, setEditablePeriod] = useState("1");
+
+  const [isGoalDialogOpen, setIsGoalDialogOpen] = useState(false);
+  const [goalDialogTeam, setGoalDialogTeam] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (match) {
+        const [m, s] = match.time.split(':');
+        setEditableMinutes(m);
+        setEditableSeconds(s);
+        setEditablePeriod(String(match.period));
+    }
+  }, [match?.time, match?.period]);
+
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -81,23 +99,183 @@ export default function AdminMatchPage() {
 
 
   if (!match) {
-    // In a real app, you'd fetch data here and show a loading state
-    // For this mock, we'll just handle the not found case.
     useEffect(() => {
       if(!matchData) notFound();
     }, [matchData])
     return null;
   }
   
+  const handleAddGoalClick = (teamId: string) => {
+    setGoalDialogTeam(teamId);
+    setIsGoalDialogOpen(true);
+  };
+
   const handleAddGoal = (teamId: string, scorer: Player, assist: Player | undefined) => {
-    console.log("Adding goal:", { teamId, scorer, assist });
-    // In a real app, this would update the backend.
-    // Here we just log it.
-  }
+    setMatch(prevMatch => {
+      if (!prevMatch) return null;
+      
+      const newMatch = JSON.parse(JSON.stringify(prevMatch));
+
+      const newGoalEvent: GoalEvent = {
+          id: `e${newMatch.events.length + 1}`,
+          type: 'goal',
+          teamId: teamId,
+          scorer: scorer,
+          assist: assist,
+          time: newMatch.time,
+          period: newMatch.period,
+      };
+
+      newMatch.events.push(newGoalEvent);
+
+      if (teamId === newMatch.teamA.id) {
+          newMatch.scoreA += 1;
+      } else {
+          newMatch.scoreB += 1;
+      }
+
+      const updateRoster = (roster: Player[]) => {
+          return roster.map(p => {
+              const newPlayer = {...p, stats: {...p.stats}};
+              if (p.id === scorer.id) {
+                  newPlayer.stats.goals += 1;
+              }
+              if (assist && p.id === assist.id) {
+                  newPlayer.stats.assists += 1;
+              }
+              return newPlayer;
+          });
+      };
+
+      if (teamId === newMatch.teamA.id) {
+          newMatch.rosterA = updateRoster(newMatch.rosterA);
+      } else {
+          newMatch.rosterB = updateRoster(newMatch.rosterB);
+      }
+
+      return newMatch;
+    });
+  };
   
   const handleAddPenalty = (teamId: string, player: Player, duration: number) => {
-    console.log("Adding penalty:", { teamId, player, duration });
-  }
+    setMatch(prevMatch => {
+        if (!prevMatch) return null;
+
+        const newMatch = JSON.parse(JSON.stringify(prevMatch));
+
+        const newPenaltyEvent: PenaltyEvent = {
+            id: `e${newMatch.events.length + 1}`,
+            type: 'penalty',
+            teamId,
+            player,
+            duration,
+            time: newMatch.time,
+            period: newMatch.period,
+        };
+        
+        newMatch.events.push(newPenaltyEvent);
+
+        const updateRoster = (roster: Player[]) => {
+            return roster.map(p => {
+                if (p.id === player.id) {
+                    const newPlayer = {...p, stats: {...p.stats}};
+                    newPlayer.stats.penalties += duration;
+                    return newPlayer;
+                }
+                return p;
+            });
+        };
+
+        if (teamId === newMatch.teamA.id) {
+            newMatch.rosterA = updateRoster(newMatch.rosterA);
+        } else {
+            newMatch.rosterB = updateRoster(newMatch.rosterB);
+        }
+
+        return newMatch;
+    });
+  };
+
+  const handleRemoveLastGoal = (teamId: string) => {
+    setMatch(prevMatch => {
+      if (!prevMatch) return null;
+
+      const newMatch = JSON.parse(JSON.stringify(prevMatch));
+
+      let lastGoalIndex = -1;
+      for (let i = newMatch.events.length - 1; i >= 0; i--) {
+        const event = newMatch.events[i];
+        if (event.type === 'goal' && event.teamId === teamId) {
+          lastGoalIndex = i;
+          break;
+        }
+      }
+
+      if (lastGoalIndex === -1) {
+        return prevMatch;
+      }
+
+      const goalToRemove = newMatch.events[lastGoalIndex];
+
+      if (teamId === newMatch.teamA.id) {
+        newMatch.scoreA = Math.max(0, newMatch.scoreA - 1);
+      } else {
+        newMatch.scoreB = Math.max(0, newMatch.scoreB - 1);
+      }
+
+      const updateRoster = (roster: Player[]) => {
+        return roster.map(p => {
+          const newPlayer = {...p, stats: {...p.stats}};
+          if (p.id === goalToRemove.scorer.id) {
+            newPlayer.stats.goals = Math.max(0, newPlayer.stats.goals - 1);
+          }
+          if (goalToRemove.assist && p.id === goalToRemove.assist.id) {
+            newPlayer.stats.assists = Math.max(0, newPlayer.stats.assists - 1);
+          }
+          return newPlayer;
+        });
+      };
+
+      newMatch.rosterA = updateRoster(newMatch.rosterA);
+      newMatch.rosterB = updateRoster(newMatch.rosterB);
+
+      newMatch.events.splice(lastGoalIndex, 1);
+
+      return newMatch;
+    });
+  };
+
+  const handleTimeUpdate = () => {
+    let newMinutes = parseInt(editableMinutes, 10);
+    let newSeconds = parseInt(editableSeconds, 10);
+    let newPeriod = parseInt(editablePeriod, 10);
+
+    if (isNaN(newMinutes) || newMinutes < 0) newMinutes = 0;
+    if (isNaN(newSeconds) || newSeconds < 0 || newSeconds > 59) newSeconds = 0;
+    if (isNaN(newPeriod) || newPeriod < 1) newPeriod = 1;
+
+    setMatch(prev => ({
+        ...prev!,
+        time: `${String(newMinutes).padStart(2, '0')}:${String(newSeconds).padStart(2, '0')}`,
+        period: newPeriod
+    }));
+  };
+  
+  const handleEndPeriod = () => {
+    setIsRunning(false);
+    setMatch(prevMatch => {
+        if (!prevMatch || prevMatch.status === 'finished') return prevMatch;
+        
+        if (prevMatch.period >= 3) {
+            return { ...prevMatch, time: "00:00", status: 'finished' };
+        }
+        return {
+            ...prevMatch,
+            period: prevMatch.period + 1,
+            time: "20:00"
+        };
+    });
+  };
 
   return (
     <div className="space-y-8">
@@ -107,36 +285,71 @@ export default function AdminMatchPage() {
         <CardHeader>
           <CardTitle>Match Controls</CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Button variant="outline" className="w-full" onClick={() => setIsRunning(prev => !prev)}>
-            {isRunning ? <Pause className="mr-2 h-4 w-4" /> : <Play className="mr-2 h-4 w-4" />}
-            {isRunning ? "Pause Clock" : "Start Clock"}
-          </Button>
-          <AddGoalDialog
-            rosterA={match.rosterA}
-            rosterB={match.rosterB}
-            onAddGoal={handleAddGoal}
-            teamAId={match.teamA.id}
-            teamBId={match.teamB.id}
-          >
-            <Button variant="outline" className="w-full">
-              <PlusCircle className="mr-2 h-4 w-4" /> Add Goal
-            </Button>
-          </AddGoalDialog>
-          <AddPenaltyDialog
-             rosterA={match.rosterA}
-             rosterB={match.rosterB}
-             onAddPenalty={handleAddPenalty}
-             teamAId={match.teamA.id}
-             teamBId={match.teamB.id}
-          >
-            <Button variant="outline" className="w-full">
-              <Shield className="mr-2 h-4 w-4" /> Add Penalty
-            </Button>
-          </AddPenaltyDialog>
-          <Button variant="destructive" className="w-full">
-            <Square className="mr-2 h-4 w-4" /> End Period
-          </Button>
+        <CardContent className="space-y-6">
+            <div className="p-4 border rounded-lg space-y-4">
+                <h3 className="font-medium">Clock & Period</h3>
+                <div className="flex flex-wrap items-end gap-4">
+                    <Button variant="outline" size="lg" onClick={() => setIsRunning(prev => !prev)} className="w-40">
+                        {isRunning ? <Pause className="mr-2" /> : <Play className="mr-2" />}
+                        {isRunning ? "Pause" : "Start"} Clock
+                    </Button>
+                    <div className="grid gap-1.5">
+                        <Label>Time (MM:SS)</Label>
+                        <div className="flex items-center gap-1">
+                            <Input type="number" value={editableMinutes} onChange={(e) => setEditableMinutes(e.target.value)} className="w-16" disabled={isRunning} max={20} min={0}/>
+                            <span className="font-bold">:</span>
+                            <Input type="number" value={editableSeconds} onChange={(e) => setEditableSeconds(e.target.value)} className="w-16" disabled={isRunning} max={59} min={0}/>
+                        </div>
+                    </div>
+                    <div className="grid gap-1.5">
+                        <Label htmlFor="period">Period</Label>
+                        <Input id="period" type="number" value={editablePeriod} onChange={(e) => setEditablePeriod(e.target.value)} className="w-16" disabled={isRunning} max={3} min={1}/>
+                    </div>
+                    <Button onClick={handleTimeUpdate} disabled={isRunning}>Set</Button>
+                     <Button variant="destructive" onClick={handleEndPeriod}>
+                        <Square className="mr-2 h-4 w-4" /> End Period
+                    </Button>
+                </div>
+            </div>
+            
+            <div className="grid md:grid-cols-3 gap-4">
+                <div className="p-4 border rounded-lg space-y-2">
+                    <h3 className="font-medium mb-2">{match.teamA.name}</h3>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                        <Button variant="outline" className="w-full" onClick={() => handleAddGoalClick(match.teamA.id)}>
+                            <PlusCircle className="mr-2" /> Add Goal
+                        </Button>
+                        <Button variant="outline" className="w-full" onClick={() => handleRemoveLastGoal(match.teamA.id)}>
+                            <MinusCircle className="mr-2" /> Remove Goal
+                        </Button>
+                    </div>
+                </div>
+                 <div className="p-4 border rounded-lg space-y-2">
+                    <h3 className="font-medium mb-2">{match.teamB.name}</h3>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                        <Button variant="outline" className="w-full" onClick={() => handleAddGoalClick(match.teamB.id)}>
+                            <PlusCircle className="mr-2" /> Add Goal
+                        </Button>
+                        <Button variant="outline" className="w-full" onClick={() => handleRemoveLastGoal(match.teamB.id)}>
+                            <MinusCircle className="mr-2" /> Remove Goal
+                        </Button>
+                    </div>
+                </div>
+                 <div className="p-4 border rounded-lg flex flex-col">
+                    <h3 className="font-medium mb-2">Penalty</h3>
+                    <AddPenaltyDialog
+                        rosterA={match.rosterA}
+                        rosterB={match.rosterB}
+                        onAddPenalty={handleAddPenalty}
+                        teamAId={match.teamA.id}
+                        teamBId={match.teamB.id}
+                    >
+                        <Button variant="outline" className="w-full h-full flex-1">
+                            <Shield className="mr-2 h-4 w-4" /> Add Penalty
+                        </Button>
+                    </AddPenaltyDialog>
+                </div>
+            </div>
         </CardContent>
       </Card>
       
@@ -144,6 +357,14 @@ export default function AdminMatchPage() {
         <RosterTable teamName={match.teamA.name} players={match.rosterA} />
         <RosterTable teamName={match.teamB.name} players={match.rosterB} />
       </div>
+
+      <AddGoalDialog
+        open={isGoalDialogOpen}
+        onOpenChange={setIsGoalDialogOpen}
+        roster={goalDialogTeam === match.teamA.id ? match.rosterA : (goalDialogTeam === match.teamB.id ? match.rosterB : [])}
+        teamId={goalDialogTeam || ''}
+        onAddGoal={handleAddGoal}
+      />
     </div>
   );
 }
