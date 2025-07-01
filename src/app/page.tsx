@@ -6,7 +6,7 @@ import { useAdminData } from "@/context/admin-data-context";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, CalendarX2 } from "lucide-react";
 
 function MatchList() {
   const { matches, isDataLoaded } = useAdminData();
@@ -23,12 +23,17 @@ function MatchList() {
 
   if (matches.length === 0) {
     return (
-      <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg">
-        <h2 className="text-2xl font-semibold">No Matches Found</h2>
-        <p className="mt-2 mb-4">Get started by creating teams and then a new match in the admin panel.</p>
+      <div className="flex min-h-[400px] flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/20 p-12 text-center">
+        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+          <CalendarX2 className="h-8 w-8 text-primary" />
+        </div>
+        <h2 className="text-2xl font-semibold">Ingen kamper funnet</h2>
+        <p className="mt-2 mb-4 text-muted-foreground">
+          Kom i gang ved å opprette lag og kamper i adminpanelet.
+        </p>
         <Button asChild>
           <Link href="/admin">
-            <PlusCircle className="mr-2 h-4 w-4" /> Go to Admin
+            <PlusCircle className="mr-2 h-4 w-4" /> Gå til Admin
           </Link>
         </Button>
       </div>
