@@ -146,9 +146,17 @@ export default function AdminMatchPage() {
   }
   
   const handleToggleClock = async () => {
+      if (!match) return;
       const newIsRunning = !isRunning;
-      const newStatus = newIsRunning ? 'live' : (match.status === 'finished' ? 'finished' : 'upcoming');
+
+      // If we start the clock, the status is 'live'.
+      // If we pause it, the status should remain as it is (e.g. 'live').
+      // It should only become 'upcoming' when the period is explicitly ended.
+      const newStatus = newIsRunning ? 'live' : match.status;
+
       setIsRunning(newIsRunning);
+
+      // Only update the status in the database if it actually changes.
       if (match.status !== newStatus) {
            await updateMatch({ ...match, status: newStatus });
       }
