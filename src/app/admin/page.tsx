@@ -1,11 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  matches as initialMatches,
-  teams as initialTeams,
-  players as initialPlayers,
-} from "@/lib/mock-data";
+import { useAdminData } from "@/context/admin-data-context";
 import {
   Table,
   TableBody,
@@ -31,13 +27,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import type { Match, Team, Player } from "@/lib/types";
+import type { Match } from "@/lib/types";
 import { CreateMatchDialog } from "@/components/admin/create-match-dialog";
 
 export default function AdminDashboard() {
-  const [matches, setMatches] = useState<Match[]>(initialMatches);
-  const [players] = useState<Player[]>(initialPlayers);
-  const [teams] = useState<Record<string, Team>>(initialTeams);
+  const { matches, setMatches, players, teams } = useAdminData();
   const [isCreateMatchDialogOpen, setIsCreateMatchDialogOpen] = useState(false);
 
   const statusColors = {

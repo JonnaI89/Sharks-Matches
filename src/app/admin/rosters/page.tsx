@@ -1,14 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { teams as initialTeams, players as initialPlayers } from "@/lib/mock-data";
+import { useAdminData } from "@/context/admin-data-context";
 import type { Player, Team } from "@/lib/types";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Trash2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { AddPlayerDialog } from "@/components/admin/add-player-dialog";
+import { AddTeamDialog } from "@/components/admin/add-team-dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,9 +24,10 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function RosterManagementPage() {
-  const [players, setPlayers] = useState<Player[]>(initialPlayers);
-  const [teams] = useState<Record<string, Team>>(initialTeams);
+  const { players, setPlayers, teams, setTeams, matches } = useAdminData();
+  const { toast } = useToast();
   const [isAddPlayerDialogOpen, setIsAddPlayerDialogOpen] = useState(false);
+  const [isAddTeamDialogOpen, setIsAddTeamDialogOpen] = useState(false);
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
 
   const handleAddPlayerClick = (teamId: string) => {
@@ -47,12 +50,51 @@ export default function RosterManagementPage() {
   const handleRemovePlayer = (playerId: string) => {
     setPlayers(prev => prev.filter(p => p.id !== playerId));
   };
+  
+  const handleAddTeam = (newTeam: Omit<Team, 'id'>) => {
+    const newTeamId = `team${Date.now()}`;
+    const teamToAdd: Team = { ...newTeam, id: newTeamId };
+    setTeams(prev => ({
+      ...prev,
+      [newTeamId]: teamToAdd,
+    }));
+  };
+  
+  const handleRemoveTeam = (teamId: string) => {
+    if (players.some(p => p.teamId === teamId)) {
+      toast({
+        title: "Cannot Remove Team",
+        description: "Please remove all players from the team before deleting it.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (matches.some(m => m.teamA.id === teamId || m.teamB.id === teamId)) {
+      toast({
+        title: "Cannot Remove Team",
+        description: "This team is part of an existing match. Please remove the match first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setTeams(prev => {
+      const newTeams = { ...prev };
+      delete newTeams[teamId];
+      return newTeams;
+    });
+  };
 
   return (
     <div className="space-y-8">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold">Roster Management</h1>
-        <p className="text-muted-foreground">Add, edit, or remove players from each team.</p>
+      <div className="flex items-center justify-between">
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold">Roster Management</h1>
+          <p className="text-muted-foreground">Create teams and manage their players.</p>
+        </div>
+        <Button onClick={() => setIsAddTeamDialogOpen(true)}>
+          <PlusCircle className="mr-2 h-4 w-4" /> Create Team
+        </Button>
       </div>
       <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
         {Object.values(teams).map(team => (
@@ -62,9 +104,33 @@ export default function RosterManagementPage() {
                 <CardTitle>{team.name}</CardTitle>
                 <CardDescription>Manage the player roster for the {team.name}.</CardDescription>
               </div>
-              <Button size="sm" onClick={() => handleAddPlayerClick(team.id)}>
-                <PlusCircle className="mr-2 h-4 w-4" /> Add Player
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button size="sm" onClick={() => handleAddPlayerClick(team.id)}>
+                  <PlusCircle className="mr-2 h-4 w-4" /> Add Player
+                </Button>
+                 <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button size="icon" variant="destructive" className="h-9 w-9">
+                      <Trash2 className="h-4 w-4" />
+                       <span className="sr-only">Delete Team</span>
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete the team, provided it has no players and is not in any match.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => handleRemoveTeam(team.id)}>
+                        Continue
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
             </CardHeader>
             <CardContent>
               <Table>
@@ -129,6 +195,11 @@ export default function RosterManagementPage() {
         onOpenChange={setIsAddPlayerDialogOpen}
         teamId={selectedTeamId}
         onAddPlayer={handleAddPlayer}
+      />
+      <AddTeamDialog
+        open={isAddTeamDialogOpen}
+        onOpenChange={setIsAddTeamDialogOpen}
+        onAddTeam={handleAddTeam}
       />
     </div>
   );
