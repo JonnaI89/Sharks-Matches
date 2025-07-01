@@ -66,7 +66,7 @@ export default function MatchPage() {
     <div className="flex flex-col min-h-screen">
       <Header />
       <main className="flex-1 container mx-auto p-4 md:p-8">
-        <Tabs defaultValue="summary" className="mt-8">
+        <Tabs defaultValue="events" className="mt-8">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="summary">Summary</TabsTrigger>
             <TabsTrigger value="events">Events</TabsTrigger>
