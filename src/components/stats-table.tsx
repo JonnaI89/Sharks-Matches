@@ -12,7 +12,7 @@ export function StatsTable({ players }: StatsTableProps) {
 
   const calculateSavePercentage = (saves: number, goalsAgainst: number) => {
     const totalShots = saves + goalsAgainst;
-    if (totalShots === 0) return ".000";
+    if (totalShots === 0) return "1.000";
     return (saves / totalShots).toFixed(3).toString().replace(/^0+/, '');
   };
 
