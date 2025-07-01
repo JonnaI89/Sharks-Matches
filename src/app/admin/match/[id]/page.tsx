@@ -3,13 +3,14 @@
 import { useState, useEffect, useCallback } from "react";
 import { notFound, useParams } from "next/navigation";
 import { useAdminData } from "@/context/admin-data-context";
-import type { Match, Player, GoalEvent, PenaltyEvent, MatchEvent } from "@/lib/types";
+import type { Match, Player, GoalEvent, PenaltyEvent, MatchEvent, SaveEvent } from "@/lib/types";
 import { Scoreboard } from "@/components/scoreboard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Shield, Play, Pause, Square, MinusCircle } from "lucide-react";
+import { PlusCircle, Shield, Play, Pause, Square, MinusCircle, Hand } from "lucide-react";
 import { AddGoalDialog } from "@/components/admin/add-goal-dialog";
 import { AddPenaltyDialog } from "@/components/admin/add-penalty-dialog";
+import { AddSaveDialog } from "@/components/admin/add-save-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -61,19 +62,18 @@ function RosterTable({ teamName, players }: { teamName: string; players: Player[
 
 export default function AdminMatchPage() {
   const params = useParams();
-  const { matches, updateMatch, isDataLoaded } = useAdminData();
+  const { matches, teams, updateMatch, isDataLoaded } = useAdminData();
   const match = matches.find((m) => m.id === params.id);
 
-  // Local state for UI controls to prevent feedback loops
   const [isRunning, setIsRunning] = useState(false);
   const [displayTime, setDisplayTime] = useState("00:00");
   const [editableMinutes, setEditableMinutes] = useState("00");
   const [editableSeconds, setEditableSeconds] = useState("00");
   const [editablePeriod, setEditablePeriod] = useState("1");
   const [isGoalDialogOpen, setIsGoalDialogOpen] = useState(false);
+  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [goalDialogTeam, setGoalDialogTeam] = useState<string | null>(null);
 
-  // Effect 1: Synchronize local state from database (match prop)
   useEffect(() => {
     if (match) {
         setDisplayTime(match.time);
@@ -85,7 +85,6 @@ export default function AdminMatchPage() {
     }
   }, [match]);
   
-  // Effect 2: Visual clock ticker. DOES NOT WRITE TO DB.
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isRunning && match) {
@@ -95,7 +94,7 @@ export default function AdminMatchPage() {
             const periodDurationInSeconds = match.periodDurationMinutes * 60;
 
             if (currentTimeInSeconds >= periodDurationInSeconds) {
-                setIsRunning(false); // Stop visual clock
+                setIsRunning(false); 
                 return secondsToTime(periodDurationInSeconds);
             }
             return secondsToTime(currentTimeInSeconds + 1);
@@ -171,6 +170,19 @@ export default function AdminMatchPage() {
       if (penaltyIndex > -1) (newMatch.events[penaltyIndex] as PenaltyEvent).status = 'cancelled';
     }
 
+    await updateMatch(newMatch);
+  };
+
+  const handleAddSave = async (teamId: string, goalie: Player) => {
+    if (!match) return;
+    let newMatch = JSON.parse(JSON.stringify(match));
+    newMatch.time = displayTime;
+
+    const newSaveEvent: SaveEvent = {
+        id: `e${newMatch.events.length + 1}`, type: 'save', teamId, goalie, time: newMatch.time, period: newMatch.period,
+    };
+    newMatch.events.push(newSaveEvent);
+    
     await updateMatch(newMatch);
   };
   
@@ -267,7 +279,6 @@ export default function AdminMatchPage() {
 
   return (
     <div className="space-y-8">
-      {/* The scoreboard now receives a temporary match object with the visual time for a smooth display */}
       <Scoreboard match={{...match, time: displayTime}} />
       
       <Card>
@@ -301,7 +312,7 @@ export default function AdminMatchPage() {
                 </div>
             </div>
             
-            <div className="grid md:grid-cols-3 gap-4">
+            <div className="grid md:grid-cols-2 gap-4">
                 <div className="p-4 border rounded-lg space-y-2">
                     <h3 className="font-medium mb-2">{match.teamA.name}</h3>
                     <div className="flex flex-col sm:flex-row gap-2">
@@ -324,9 +335,11 @@ export default function AdminMatchPage() {
                         </Button>
                     </div>
                 </div>
-                <div className="p-4 border rounded-lg flex flex-col">
+            </div>
+            <div className="grid md:grid-cols-2 gap-4">
+                <div className="p-4 border rounded-lg space-y-2">
                     <h3 className="font-medium mb-2">Penalty</h3>
-                    <div className="flex flex-col sm:flex-row gap-2 flex-1">
+                    <div className="flex flex-col sm:flex-row gap-2">
                          <AddPenaltyDialog
                             rosterA={match.rosterA}
                             rosterB={match.rosterB}
@@ -337,14 +350,27 @@ export default function AdminMatchPage() {
                             teamBName={match.teamB.name}
                             disabled={isRunning}
                         >
-                            <Button variant="outline" className="w-full h-full flex-1" disabled={isRunning}>
+                            <Button variant="outline" className="w-full" disabled={isRunning}>
                                 <Shield className="mr-2 h-4 w-4" /> Add Penalty
                             </Button>
                         </AddPenaltyDialog>
-                        <Button variant="outline" className="w-full h-full flex-1" onClick={handleRemoveLastPenalty} disabled={isRunning}>
+                        <Button variant="outline" className="w-full" onClick={handleRemoveLastPenalty} disabled={isRunning}>
                             <MinusCircle className="mr-2" /> Remove Penalty
                         </Button>
                     </div>
+                </div>
+                <div className="p-4 border rounded-lg space-y-2">
+                    <h3 className="font-medium mb-2">Goalkeeping</h3>
+                     <AddSaveDialog
+                        teams={[match.teamA, match.teamB]}
+                        rosters={{ [match.teamA.id]: match.rosterA, [match.teamB.id]: match.rosterB }}
+                        onAddSave={handleAddSave}
+                        disabled={isRunning}
+                    >
+                        <Button variant="outline" className="w-full" disabled={isRunning}>
+                            <Hand className="mr-2 h-4 w-4" /> Register Save
+                        </Button>
+                    </AddSaveDialog>
                 </div>
             </div>
         </CardContent>

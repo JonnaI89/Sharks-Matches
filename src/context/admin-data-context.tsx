@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
-import type { Match, Player, Team, MatchEvent } from '@/lib/types';
+import type { Match, Player, Team, MatchEvent, SaveEvent } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, doc, setDoc, addDoc, deleteDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -23,21 +23,15 @@ interface AdminDataContextType {
 
 const AdminDataContext = createContext<AdminDataContextType | undefined>(undefined);
 
-// Firestore objects can't contain nested custom objects directly,
-// so we store references (just the ID) and re-hydrate on read.
-// This helper function strips down the complex objects before writing.
 const sanitizeMatchForFirebase = (match: Match | Omit<Match, 'id'>) => {
     const sanitizedMatch = JSON.parse(JSON.stringify(match));
     
-    // Sanitize teams to store as references
     sanitizedMatch.teamA = { id: match.teamA.id };
     sanitizedMatch.teamB = { id: match.teamB.id };
 
-    // Don't store rosters in the match document, they are derived from players list
     delete sanitizedMatch.rosterA;
     delete sanitizedMatch.rosterB;
 
-    // Sanitize events
     sanitizedMatch.events = match.events.map(event => {
         const newEvent = { ...event };
         if (newEvent.type === 'goal') {
@@ -47,6 +41,8 @@ const sanitizeMatchForFirebase = (match: Match | Omit<Match, 'id'>) => {
             }
         } else if (newEvent.type === 'penalty') {
             newEvent.player = { id: newEvent.player.id };
+        } else if (newEvent.type === 'save') {
+            newEvent.goalie = { id: newEvent.goalie.id };
         }
         return newEvent;
     });
@@ -67,8 +63,7 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
         players: true,
         matches: true,
     });
-    const [isDataLoaded, setIsDataLoaded] = useState(false);
-    const areRawSourcesLoaded = !loadingStatus.teams && !loadingStatus.players && !loadingStatus.matches;
+    const isDataLoaded = !loadingStatus.teams && !loadingStatus.players && !loadingStatus.matches;
 
     useEffect(() => {
         const handleError = (error: Error, type: string) => {
@@ -109,7 +104,7 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
     }, [toast]);
 
     useEffect(() => {
-        if (!areRawSourcesLoaded) {
+        if (!isDataLoaded) {
             return;
         }
 
@@ -131,16 +126,21 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
                      if (!player) return null;
                      return { ...event, player };
                 }
+                if (event.type === 'save') {
+                    const goalie = players.find(p => p.id === event.goalie?.id);
+                    if (!goalie) return null;
+                    return { ...event, goalie };
+                }
                 return event;
             }).filter((e): e is MatchEvent => e !== null);
 
             const rosterA_withStats = players
                 .filter(p => p.teamId === teamA.id)
-                .map(p => ({ ...p, stats: { goals: 0, assists: 0, penalties: 0 } }));
+                .map(p => ({ ...p, stats: { goals: 0, assists: 0, penalties: 0, saves: 0, goalsAgainst: 0 } }));
             
             const rosterB_withStats = players
                 .filter(p => p.teamId === teamB.id)
-                .map(p => ({ ...p, stats: { goals: 0, assists: 0, penalties: 0 } }));
+                .map(p => ({ ...p, stats: { goals: 0, assists: 0, penalties: 0, saves: 0, goalsAgainst: 0 } }));
 
             hydratedEvents.forEach(event => {
                 const isTeamAEvent = event.teamId === teamA.id;
@@ -174,11 +174,8 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
         }).filter((m): m is Match => m !== null);
         
         setMatches(hydratedMatches);
-        if (!isDataLoaded) {
-            setIsDataLoaded(true);
-        }
 
-    }, [rawMatches, teams, players, areRawSourcesLoaded, isDataLoaded]);
+    }, [rawMatches, teams, players, isDataLoaded]);
 
     const addMatch = useCallback(async (teamAId: string, teamBId: string, totalPeriods: number, periodDurationMinutes: number) => {
         const teamA = teams[teamAId];

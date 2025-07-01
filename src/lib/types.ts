@@ -42,7 +42,16 @@ export interface PenaltyEvent {
   } | null;
 }
 
-export type MatchEvent = GoalEvent | PenaltyEvent;
+export interface SaveEvent {
+  type: 'save';
+  id: string;
+  teamId: string;
+  goalie: Player;
+  time: string; // e.g., "15:34"
+  period: number;
+}
+
+export type MatchEvent = GoalEvent | PenaltyEvent | SaveEvent;
 
 export interface Match {
   id: string;

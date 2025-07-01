@@ -98,7 +98,7 @@ export default function RosterManagementPage() {
                     <AlertDialogHeader>
                       <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        This action cannot be undone. This will permanently delete the team from the database.
+                        This action cannot be undone. This will permanently delete the team, its players and all associated match data.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

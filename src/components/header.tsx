@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { UserCog } from "lucide-react";
+import { UserCog, BarChart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function Header() {
@@ -10,7 +10,13 @@ export function Header() {
           <Link href="/" className="text-xl font-bold">
             Live Center
           </Link>
-          <nav>
+          <nav className="flex items-center gap-2">
+            <Button variant="ghost" asChild>
+              <Link href="/stats">
+                <BarChart className="mr-2 h-4 w-4" />
+                Stats
+              </Link>
+            </Button>
             <Button variant="ghost" asChild>
               <Link href="/admin">
                 <UserCog className="mr-2 h-4 w-4" />
