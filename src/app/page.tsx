@@ -52,9 +52,6 @@ export default function Home() {
         <h1 className="text-3xl md:text-4xl font-bold mb-6 text-foreground">Matches</h1>
         <MatchList />
       </main>
-      <footer className="text-center p-4 text-muted-foreground text-sm">
-        <p>&copy; {new Date().getFullYear()} Sarpsborg IBK Live. All rights reserved.</p>
-      </footer>
     </div>
   );
 }
