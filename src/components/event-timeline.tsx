@@ -1,11 +1,37 @@
 "use client";
 
-import type { Match } from "@/lib/types";
-import { Goal, Shield } from "lucide-react";
+import type { Match, MatchEvent } from "@/lib/types";
+import { Goal, Shield, Hand } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface EventTimelineProps {
   match: Match;
+}
+
+function getEventContent(event: MatchEvent) {
+    switch(event.type) {
+        case 'goal':
+            return {
+                Icon: Goal,
+                description: `Goal by ${event.scorer.name}${event.assist ? `, assist by ${event.assist.name}` : ''}`
+            };
+        case 'penalty':
+            return {
+                Icon: Shield,
+                description: `${event.duration} min penalty for ${event.player.name}`
+            };
+        case 'save':
+            return {
+                Icon: Hand,
+                description: `Save by ${event.goalie.name}`
+            }
+        default:
+            // Fallback for any unknown event types to prevent crashes
+            return {
+                Icon: Goal,
+                description: 'An event occurred.'
+            }
+    }
 }
 
 export function EventTimeline({ match }: EventTimelineProps) {
@@ -27,7 +53,7 @@ export function EventTimeline({ match }: EventTimelineProps) {
       {sortedEvents.map((event) => {
         const isHomeTeam = event.teamId === teamA.id;
         const team = isHomeTeam ? teamA : teamB;
-        const Icon = event.type === 'goal' ? Goal : Shield;
+        const { Icon, description } = getEventContent(event);
 
         return (
           <div
@@ -57,16 +83,9 @@ export function EventTimeline({ match }: EventTimelineProps) {
             {/* Event Details */}
             <div className={cn("flex-grow", !isHomeTeam && "text-right")}>
               <p className="font-semibold">{team.name}</p>
-              {event.type === 'goal' ? (
-                <p className="text-sm text-muted-foreground">
-                  Goal by {event.scorer.name}
-                  {event.assist ? `, assist by ${event.assist.name}` : ''}
-                </p>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  {event.duration} min penalty for {event.player.name}
-                </p>
-              )}
+              <p className="text-sm text-muted-foreground">
+                {description}
+              </p>
             </div>
 
             {/* Timestamp */}
