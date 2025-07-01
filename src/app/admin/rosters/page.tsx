@@ -5,11 +5,12 @@ import { useAdminData } from "@/context/admin-data-context";
 import type { Player, Team } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Trash2 } from "lucide-react";
+import { PlusCircle, Trash2, Edit } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { AddPlayerDialog } from "@/components/admin/add-player-dialog";
 import { AddTeamDialog } from "@/components/admin/add-team-dialog";
+import { EditTeamDialog } from "@/components/admin/edit-team-dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,14 +24,21 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function RosterManagementPage() {
-  const { players, teams, addPlayer, deletePlayer, addTeam, deleteTeam } = useAdminData();
+  const { players, teams, addPlayer, deletePlayer, addTeam, deleteTeam, updateTeam } = useAdminData();
   const [isAddPlayerDialogOpen, setIsAddPlayerDialogOpen] = useState(false);
   const [isAddTeamDialogOpen, setIsAddTeamDialogOpen] = useState(false);
+  const [isEditTeamDialogOpen, setIsEditTeamDialogOpen] = useState(false);
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+  const [teamToEdit, setTeamToEdit] = useState<Team | null>(null);
 
   const handleAddPlayerClick = (teamId: string) => {
     setSelectedTeamId(teamId);
     setIsAddPlayerDialogOpen(true);
+  };
+
+  const handleEditTeamClick = (team: Team) => {
+    setTeamToEdit(team);
+    setIsEditTeamDialogOpen(true);
   };
 
   const handleAddPlayer = async (teamId: string, newPlayer: Omit<Player, 'id' | 'teamId' | 'stats'>) => {
@@ -48,6 +56,10 @@ export default function RosterManagementPage() {
   const handleRemoveTeam = async (teamId: string) => {
     await deleteTeam(teamId);
   };
+
+  const handleUpdateTeam = async (teamId: string, updatedData: Omit<Team, 'id'>) => {
+    await updateTeam(teamId, updatedData);
+  }
 
   return (
     <div className="space-y-8">
@@ -71,6 +83,9 @@ export default function RosterManagementPage() {
               <div className="flex items-center gap-2">
                 <Button size="sm" onClick={() => handleAddPlayerClick(team.id)}>
                   <PlusCircle className="mr-2 h-4 w-4" /> Add Player
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => handleEditTeamClick(team)}>
+                  <Edit className="mr-2 h-4 w-4" /> Edit
                 </Button>
                  <AlertDialog>
                   <AlertDialogTrigger asChild>
@@ -164,6 +179,12 @@ export default function RosterManagementPage() {
         open={isAddTeamDialogOpen}
         onOpenChange={setIsAddTeamDialogOpen}
         onAddTeam={handleAddTeam}
+      />
+      <EditTeamDialog
+        open={isEditTeamDialogOpen}
+        onOpenChange={setIsEditTeamDialogOpen}
+        team={teamToEdit}
+        onUpdateTeam={handleUpdateTeam}
       />
     </div>
   );

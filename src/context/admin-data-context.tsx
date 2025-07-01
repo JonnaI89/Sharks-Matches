@@ -15,6 +15,7 @@ interface AdminDataContextType {
     updateMatch: (match: Match) => Promise<void>;
     deleteMatch: (matchId: string) => Promise<void>;
     addTeam: (team: Omit<Team, 'id'>) => Promise<void>;
+    updateTeam: (teamId: string, teamData: Omit<Team, 'id'>) => Promise<void>;
     deleteTeam: (teamId: string) => Promise<void>;
     addPlayer: (teamId: string, player: Omit<Player, 'id' | 'teamId' | 'stats'>) => Promise<void>;
     deletePlayer: (playerId: string) => Promise<void>;
@@ -182,6 +183,30 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
             console.error("Error adding team: ", error);
         }
     };
+    
+    const updateTeam = async (teamId: string, teamData: Omit<Team, 'id'>) => {
+        try {
+            const teamDocRef = doc(db, "teams", teamId);
+            await setDoc(teamDocRef, teamData);
+            const updatedTeam: Team = { id: teamId, ...teamData };
+
+            setTeams(prev => ({ ...prev, [teamId]: updatedTeam }));
+
+            setMatches(prevMatches => prevMatches.map(match => {
+                const newMatch = {...match};
+                if (match.teamA.id === teamId) newMatch.teamA = updatedTeam;
+                if (match.teamB.id === teamId) newMatch.teamB = updatedTeam;
+                return newMatch;
+            }));
+        } catch (error) {
+            console.error("Error updating team: ", error);
+            toast({
+                title: "Error",
+                description: "Could not update team information.",
+                variant: "destructive",
+            });
+        }
+    };
 
     const deleteTeam = async (teamId: string) => {
         if (players.some(p => p.teamId === teamId)) {
@@ -229,7 +254,7 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
 
     const value = {
         matches, teams, players, isDataLoaded,
-        addMatch, updateMatch, deleteMatch, addTeam, deleteTeam, addPlayer, deletePlayer,
+        addMatch, updateMatch, deleteMatch, addTeam, updateTeam, deleteTeam, addPlayer, deletePlayer,
     };
 
     return (

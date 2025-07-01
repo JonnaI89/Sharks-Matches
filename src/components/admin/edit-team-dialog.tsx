@@ -22,13 +22,14 @@ const formSchema = z.object({
   logo: z.string().max(1, { message: "Logo can be at most 1 character." }).toUpperCase(),
 });
 
-interface AddTeamDialogProps {
+interface EditTeamDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAddTeam: (newTeam: Omit<Team, 'id'>) => void;
+  team: Team | null;
+  onUpdateTeam: (teamId: string, updatedTeam: Omit<Team, 'id'>) => void;
 }
 
-export function AddTeamDialog({ open, onOpenChange, onAddTeam }: AddTeamDialogProps) {
+export function EditTeamDialog({ open, onOpenChange, team, onUpdateTeam }: EditTeamDialogProps) {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -38,15 +39,22 @@ export function AddTeamDialog({ open, onOpenChange, onAddTeam }: AddTeamDialogPr
   });
 
   useEffect(() => {
-    if (!open) {
-      form.reset();
+    if (open && team) {
+      form.reset({
+        name: team.name,
+        logo: team.logo,
+      });
     }
-  }, [open, form]);
+  }, [open, team, form]);
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
-    onAddTeam(values);
-    onOpenChange(false);
+    if (team) {
+      onUpdateTeam(team.id, values);
+      onOpenChange(false);
+    }
   };
+
+  if (!team) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -54,9 +62,9 @@ export function AddTeamDialog({ open, onOpenChange, onAddTeam }: AddTeamDialogPr
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <DialogHeader>
-              <DialogTitle>Create New Team</DialogTitle>
+              <DialogTitle>Edit Team</DialogTitle>
               <DialogDescription>
-                Enter the details for the new team. Click save when you're done.
+                Update the details for the team. Click save when you're done.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
@@ -89,7 +97,7 @@ export function AddTeamDialog({ open, onOpenChange, onAddTeam }: AddTeamDialogPr
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-              <Button type="submit">Save team</Button>
+              <Button type="submit">Save changes</Button>
             </DialogFooter>
           </form>
         </Form>
