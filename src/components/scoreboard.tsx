@@ -1,12 +1,27 @@
 import type { Match } from "@/lib/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "./ui/skeleton";
 
 interface ScoreboardProps {
-  match: Match;
+  match: Match | undefined | null;
 }
 
 export function Scoreboard({ match }: ScoreboardProps) {
+  if (!match) {
+    return (
+      <Card className="shadow-lg">
+        <CardContent className="p-4 md:p-6">
+            <div className="flex justify-between items-center text-center">
+                <Skeleton className="h-8 w-1/3" />
+                <Skeleton className="h-12 w-1/4" />
+                <Skeleton className="h-8 w-1/3" />
+            </div>
+        </CardContent>
+      </Card>
+    );
+  }
+  
   return (
     <Card className="shadow-lg">
       <CardContent className="p-4 md:p-6">

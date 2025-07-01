@@ -1,12 +1,16 @@
+"use client";
+
 import type { MatchEvent } from "@/lib/types";
+import { useAdminData } from "@/context/admin-data-context";
 import { Goal, Square } from "lucide-react";
-import { teams } from "@/lib/mock-data";
 
 interface EventTimelineProps {
   events: MatchEvent[];
 }
 
 export function EventTimeline({ events }: EventTimelineProps) {
+  const { teams } = useAdminData();
+
   if (events.length === 0) {
     return <p className="text-muted-foreground text-center py-8">No events have occurred yet.</p>;
   }
@@ -20,7 +24,7 @@ export function EventTimeline({ events }: EventTimelineProps) {
 
   return (
     <div className="space-y-8">
-      {sortedEvents.map((event, index) => (
+      {sortedEvents.map((event) => (
         <div key={event.id} className="flex items-center gap-4">
           <div className="flex flex-col items-center">
             <span className="font-mono text-sm text-muted-foreground">P{event.period}</span>
@@ -38,7 +42,7 @@ export function EventTimeline({ events }: EventTimelineProps) {
             )}
           </div>
           <div className="flex-grow">
-            <p className="font-semibold">{teams[event.teamId as keyof typeof teams]?.name}</p>
+            <p className="font-semibold">{teams[event.teamId]?.name || 'Unknown Team'}</p>
             {event.type === 'goal' ? (
               <p className="text-sm text-muted-foreground">
                 Goal by {event.scorer.name}

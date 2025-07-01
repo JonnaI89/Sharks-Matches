@@ -14,7 +14,6 @@ import {
 import { Gamepad2, LayoutDashboard, Settings, Users } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { AdminDataProvider } from "@/context/admin-data-context";
 
 export default function AdminLayout({
   children,
@@ -24,7 +23,6 @@ export default function AdminLayout({
   const pathname = usePathname();
 
   return (
-    <AdminDataProvider>
       <SidebarProvider>
         <div className="flex min-h-screen">
           <Sidebar>
@@ -90,6 +88,5 @@ export default function AdminLayout({
           </SidebarInset>
         </div>
       </SidebarProvider>
-    </AdminDataProvider>
   );
 }

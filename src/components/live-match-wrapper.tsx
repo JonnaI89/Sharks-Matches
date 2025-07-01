@@ -16,28 +16,44 @@ const secondsToTime = (totalSeconds: number) => {
     return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 };
 
+export function LiveMatchWrapper({ match: matchProp }: { match: Match }) {
+    // We use the prop to initialize state, but also to receive updates (e.g. goals, penalties from admin)
+    const [liveMatch, setLiveMatch] = useState<Match>(matchProp);
 
-export function LiveMatchWrapper({ match: initialMatch }: { match: Match }) {
-    const [match, setMatch] = useState(initialMatch);
-
+    // This effect syncs external changes (from props) with the internal state,
+    // preserving the component's own live timer.
     useEffect(() => {
-        if (match.status !== 'live') {
+        setLiveMatch(currentLiveMatch => ({
+            ...matchProp,
+            // Only preserve the running time if the component has a time state already.
+            // Otherwise, use the time from the prop. This handles initial render correctly.
+            time: currentLiveMatch ? currentLiveMatch.time : matchProp.time, 
+        }));
+    }, [matchProp]);
+    
+    // This effect runs the clock
+    useEffect(() => {
+        if (liveMatch.status !== 'live') {
+            // Ensure the displayed time is the official time when clock is not running
+            if (liveMatch.time !== matchProp.time) {
+                setLiveMatch(prev => ({...prev, time: matchProp.time}));
+            }
             return;
         }
 
         const interval = setInterval(() => {
-            setMatch(prevMatch => {
+            setLiveMatch(prevMatch => {
+                if (prevMatch.status !== 'live') return prevMatch;
+                
                 const newMatch = JSON.parse(JSON.stringify(prevMatch));
 
                 const currentTimeInSeconds = timeToSeconds(newMatch.time);
                 if (currentTimeInSeconds >= 1200) { // 20 minutes
-                    // Stop the timer, but wait for admin to end period
-                    return newMatch;
+                    return prevMatch; // Stop the timer
                 }
 
                 newMatch.time = secondsToTime(currentTimeInSeconds + 1);
 
-                // Check for penalty expirations
                 newMatch.events = newMatch.events.map((event: PenaltyEvent | GoalEvent) => {
                     if (event.type === 'penalty' && event.status === 'active' && event.expiresAt) {
                         const isExpired = newMatch.period > event.expiresAt.period ||
@@ -54,13 +70,12 @@ export function LiveMatchWrapper({ match: initialMatch }: { match: Match }) {
         }, 1000);
 
         return () => clearInterval(interval);
-    }, [match.status]);
-
+    }, [liveMatch.status, liveMatch.time, matchProp.time]); // Rerun if status or official time changes
 
     return (
         <div className="space-y-6">
-            <Scoreboard match={match} />
-            <ActivePenalties match={match} />
+            <Scoreboard match={liveMatch} />
+            <ActivePenalties match={liveMatch} />
         </div>
     );
 }

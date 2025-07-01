@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { notFound, useParams } from "next/navigation";
-import { matches as mockMatches } from "@/lib/mock-data";
-import type { Match, Player, GoalEvent, PenaltyEvent } from "@/lib/types";
+import { useAdminData } from "@/context/admin-data-context";
+import type { Match, Player, GoalEvent, PenaltyEvent, MatchEvent } from "@/lib/types";
 import { Scoreboard } from "@/components/scoreboard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { AddPenaltyDialog } from "@/components/admin/add-penalty-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const timeToSeconds = (time: string) => {
     const [minutes, seconds] = time.split(':').map(Number);
@@ -59,15 +60,15 @@ function RosterTable({ teamName, players }: { teamName: string; players: Player[
 
 export default function AdminMatchPage() {
   const params = useParams();
-  const matchData = mockMatches.find((m) => m.id === params.id);
-
-  const [match, setMatch] = useState<Match | null>(matchData ? JSON.parse(JSON.stringify(matchData)) : null);
-  const [isRunning, setIsRunning] = useState(false);
+  const { matches, setMatches, isDataLoaded } = useAdminData();
   
+  const match = matches.find((m) => m.id === params.id);
+
+  // Local state for UI controls, not the match data itself
+  const [isRunning, setIsRunning] = useState(false);
   const [editableMinutes, setEditableMinutes] = useState("00");
   const [editableSeconds, setEditableSeconds] = useState("00");
   const [editablePeriod, setEditablePeriod] = useState("1");
-
   const [isGoalDialogOpen, setIsGoalDialogOpen] = useState(false);
   const [goalDialogTeam, setGoalDialogTeam] = useState<string | null>(null);
 
@@ -77,315 +78,219 @@ export default function AdminMatchPage() {
         setEditableMinutes(m);
         setEditableSeconds(s);
         setEditablePeriod(String(match.period));
+        setIsRunning(match.status === 'live' && timeToSeconds(match.time) < 1200);
     }
-  }, [match?.time, match?.period]);
+  }, [match]);
 
-
+  const updateMatch = (updatedMatch: Match) => {
+    setMatches(prevMatches => prevMatches.map(m => m.id === updatedMatch.id ? updatedMatch : m));
+  };
+  
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isRunning && match) {
       interval = setInterval(() => {
-        setMatch(prevMatch => {
-          if (!prevMatch) return null;
-          
-          let newMatch = JSON.parse(JSON.stringify(prevMatch));
-          
-          const currentTimeInSeconds = timeToSeconds(newMatch.time);
-          
-          if (currentTimeInSeconds >= 1200) {
-              setIsRunning(false);
-              newMatch.time = "20:00";
-              return newMatch;
+        // We read the latest match from the context inside the interval to avoid stale state
+        const currentMatch = matches.find(m => m.id === params.id);
+        if (!currentMatch) {
+            setIsRunning(false);
+            return;
+        }
+
+        let newMatch = JSON.parse(JSON.stringify(currentMatch));
+        const currentTimeInSeconds = timeToSeconds(newMatch.time);
+        
+        if (currentTimeInSeconds >= 1200) {
+            setIsRunning(false);
+            newMatch.time = "20:00";
+            newMatch.status = 'upcoming'; // To indicate period end, admin must click "End Period"
+            updateMatch(newMatch);
+            return;
+        }
+
+        newMatch.time = secondsToTime(currentTimeInSeconds + 1);
+        
+        newMatch.events = newMatch.events.map((event: PenaltyEvent | GoalEvent) => {
+          if (event.type === 'penalty' && event.status === 'active' && event.expiresAt) {
+              const isExpired = newMatch.period > event.expiresAt.period ||
+                  (newMatch.period === event.expiresAt.period && timeToSeconds(newMatch.time) >= timeToSeconds(event.expiresAt.time));
+              if (isExpired) {
+                  return { ...event, status: 'expired' };
+              }
           }
-
-          newMatch.time = secondsToTime(currentTimeInSeconds + 1);
-          
-          // Check for penalty expirations
-          newMatch.events = newMatch.events.map((event: PenaltyEvent | GoalEvent) => {
-            if (event.type === 'penalty' && event.status === 'active' && event.expiresAt) {
-                const isExpired = newMatch.period > event.expiresAt.period ||
-                    (newMatch.period === event.expiresAt.period && timeToSeconds(newMatch.time) >= timeToSeconds(event.expiresAt.time));
-                if (isExpired) {
-                    return { ...event, status: 'expired' };
-                }
-            }
-            return event;
-          });
-
-          return newMatch;
+          return event;
         });
+
+        updateMatch(newMatch);
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [isRunning, match]);
+  }, [isRunning, matches, params.id, setMatches]);
 
+  if (!isDataLoaded) {
+      return (
+        <div className="space-y-8">
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-64 w-full" />
+            <div className="grid md:grid-cols-2 gap-8">
+                <Skeleton className="h-96 w-full" />
+                <Skeleton className="h-96 w-full" />
+            </div>
+        </div>
+      );
+  }
 
   if (!match) {
-    useEffect(() => {
-      if(!matchData) notFound();
-    }, [matchData])
-    return null;
+    return notFound();
   }
   
+  const handleToggleClock = () => {
+      const newIsRunning = !isRunning;
+      const newStatus = newIsRunning ? 'live' : (match.status === 'finished' ? 'finished' : 'upcoming');
+      setIsRunning(newIsRunning);
+      if (match.status !== newStatus) {
+           updateMatch({ ...match, status: newStatus });
+      }
+  };
+
   const handleAddGoalClick = (teamId: string) => {
     setGoalDialogTeam(teamId);
     setIsGoalDialogOpen(true);
   };
 
   const handleAddGoal = (teamId: string, scorer: Player, assist: Player | undefined) => {
-    setMatch(prevMatch => {
-      if (!prevMatch) return null;
-      
-      const newMatch = JSON.parse(JSON.stringify(prevMatch));
-
-      const newGoalEvent: GoalEvent = {
-          id: `e${newMatch.events.length + 1}`,
-          type: 'goal',
-          teamId: teamId,
-          scorer: scorer,
-          assist: assist,
-          time: newMatch.time,
-          period: newMatch.period,
-      };
-
-      newMatch.events.push(newGoalEvent);
-
-      if (teamId === newMatch.teamA.id) {
-          newMatch.scoreA += 1;
-      } else {
-          newMatch.scoreB += 1;
-      }
-
-      const updateRoster = (roster: Player[]) => {
-          return roster.map(p => {
-              const newPlayer = {...p, stats: {...p.stats}};
-              if (p.id === scorer.id) {
-                  newPlayer.stats.goals += 1;
-              }
-              if (assist && p.id === assist.id) {
-                  newPlayer.stats.assists += 1;
-              }
-              return newPlayer;
-          });
-      };
-      
-      if (teamId === newMatch.teamA.id) {
-          newMatch.rosterA = updateRoster(newMatch.rosterA);
-      } else {
-          newMatch.rosterB = updateRoster(newMatch.rosterB);
-      }
-
-      // Cancel penalty if opposing team scores
-      const concedingTeamId = teamId === newMatch.teamA.id ? newMatch.teamB.id : newMatch.teamA.id;
-      const activePenalties = newMatch.events.filter(
-        (e: MatchEvent): e is PenaltyEvent => e.type === 'penalty' && e.teamId === concedingTeamId && e.status === 'active'
-      );
-
-      if (activePenalties.length > 0) {
-        activePenalties.sort((a, b) => {
-          if (a.period !== b.period) return a.period - b.period;
-          return a.time.localeCompare(b.time);
-        });
-        const penaltyToCancelId = activePenalties[0].id;
-        const penaltyIndex = newMatch.events.findIndex((e: MatchEvent) => e.id === penaltyToCancelId);
-        if (penaltyIndex > -1) {
-            (newMatch.events[penaltyIndex] as PenaltyEvent).status = 'cancelled';
-        }
-      }
-
-      return newMatch;
+    let newMatch = JSON.parse(JSON.stringify(match));
+    const newGoalEvent: GoalEvent = {
+        id: `e${newMatch.events.length + 1}`, type: 'goal', teamId, scorer, assist, time: newMatch.time, period: newMatch.period,
+    };
+    newMatch.events.push(newGoalEvent);
+    if (teamId === newMatch.teamA.id) newMatch.scoreA += 1;
+    else newMatch.scoreB += 1;
+    const updateRoster = (roster: Player[]) => roster.map(p => {
+        const newPlayer = {...p, stats: {...p.stats}};
+        if (p.id === scorer.id) newPlayer.stats.goals += 1;
+        if (assist && p.id === assist.id) newPlayer.stats.assists += 1;
+        return newPlayer;
     });
+    if (teamId === newMatch.teamA.id) newMatch.rosterA = updateRoster(newMatch.rosterA);
+    else newMatch.rosterB = updateRoster(newMatch.rosterB);
+    const concedingTeamId = teamId === newMatch.teamA.id ? newMatch.teamB.id : newMatch.teamA.id;
+    const activePenalties = newMatch.events.filter((e: MatchEvent): e is PenaltyEvent => e.type === 'penalty' && e.teamId === concedingTeamId && e.status === 'active');
+    if (activePenalties.length > 0) {
+      activePenalties.sort((a, b) => a.period !== b.period ? a.period - b.period : a.time.localeCompare(b.time));
+      const penaltyToCancelId = activePenalties[0].id;
+      const penaltyIndex = newMatch.events.findIndex((e: MatchEvent) => e.id === penaltyToCancelId);
+      if (penaltyIndex > -1) (newMatch.events[penaltyIndex] as PenaltyEvent).status = 'cancelled';
+    }
+    updateMatch(newMatch);
   };
   
   const handleAddPenalty = (teamId: string, player: Player, duration: number) => {
-    setMatch(prevMatch => {
-        if (!prevMatch) return null;
-
-        const newMatch = JSON.parse(JSON.stringify(prevMatch));
-
-        const currentTimeInSeconds = timeToSeconds(newMatch.time);
-        const penaltyEndTimeInSeconds = currentTimeInSeconds + duration * 60;
-
-        let endPeriod = newMatch.period;
-        let endTimeInSecondsForPeriod = penaltyEndTimeInSeconds;
-
-        while (endTimeInSecondsForPeriod >= 1200) { // 1200 seconds = 20 minutes
-            endTimeInSecondsForPeriod -= 1200;
-            endPeriod++;
+    let newMatch = JSON.parse(JSON.stringify(match));
+    const currentTimeInSeconds = timeToSeconds(newMatch.time);
+    const penaltyEndTimeInSeconds = currentTimeInSeconds + duration * 60;
+    let endPeriod = newMatch.period;
+    let endTimeInSecondsForPeriod = penaltyEndTimeInSeconds;
+    while (endTimeInSecondsForPeriod >= 1200) {
+        endTimeInSecondsForPeriod -= 1200;
+        endPeriod++;
+    }
+    const newPenaltyEvent: PenaltyEvent = {
+        id: `e${newMatch.events.length + 1}`, type: 'penalty', teamId, player, duration, time: newMatch.time, period: newMatch.period, status: 'active', expiresAt: { period: endPeriod, time: secondsToTime(endTimeInSecondsForPeriod) },
+    };
+    newMatch.events.push(newPenaltyEvent);
+    const updateRoster = (roster: Player[]) => roster.map(p => {
+        if (p.id === player.id) {
+            const newPlayer = {...p, stats: {...p.stats}};
+            newPlayer.stats.penalties += duration;
+            return newPlayer;
         }
-        
-        const newPenaltyEvent: PenaltyEvent = {
-            id: `e${newMatch.events.length + 1}`,
-            type: 'penalty',
-            teamId,
-            player,
-            duration,
-            time: newMatch.time,
-            period: newMatch.period,
-            status: 'active',
-            expiresAt: {
-                period: endPeriod,
-                time: secondsToTime(endTimeInSecondsForPeriod),
-            },
-        };
-        
-        newMatch.events.push(newPenaltyEvent);
-
-        const updateRoster = (roster: Player[]) => {
-            return roster.map(p => {
-                if (p.id === player.id) {
-                    const newPlayer = {...p, stats: {...p.stats}};
-                    newPlayer.stats.penalties += duration;
-                    return newPlayer;
-                }
-                return p;
-            });
-        };
-
-        if (teamId === newMatch.teamA.id) {
-            newMatch.rosterA = updateRoster(newMatch.rosterA);
-        } else {
-            newMatch.rosterB = updateRoster(newMatch.rosterB);
-        }
-
-        return newMatch;
+        return p;
     });
+    if (teamId === newMatch.teamA.id) newMatch.rosterA = updateRoster(newMatch.rosterA);
+    else newMatch.rosterB = updateRoster(newMatch.rosterB);
+    updateMatch(newMatch);
   };
 
   const handleRemoveLastGoal = (teamId: string) => {
-    setMatch(prevMatch => {
-      if (!prevMatch) return null;
-
-      const newMatch = JSON.parse(JSON.stringify(prevMatch));
-
-      let lastGoalIndex = -1;
-      for (let i = newMatch.events.length - 1; i >= 0; i--) {
-        const event = newMatch.events[i];
-        if (event.type === 'goal' && event.teamId === teamId) {
-          lastGoalIndex = i;
-          break;
+    let newMatch = JSON.parse(JSON.stringify(match));
+    let lastGoalIndex = -1;
+    for (let i = newMatch.events.length - 1; i >= 0; i--) {
+        if (newMatch.events[i].type === 'goal' && newMatch.events[i].teamId === teamId) {
+            lastGoalIndex = i;
+            break;
         }
-      }
-
-      if (lastGoalIndex === -1) {
-        return prevMatch;
-      }
-
-      const goalToRemove = newMatch.events[lastGoalIndex] as GoalEvent;
-
-      if (teamId === newMatch.teamA.id) {
-        newMatch.scoreA = Math.max(0, newMatch.scoreA - 1);
-      } else {
-        newMatch.scoreB = Math.max(0, newMatch.scoreB - 1);
-      }
-
-      const updateRoster = (roster: Player[]) => {
-        return roster.map(p => {
-          const newPlayer = {...p, stats: {...p.stats}};
-          if (p.id === goalToRemove.scorer.id) {
-            newPlayer.stats.goals = Math.max(0, newPlayer.stats.goals - 1);
-          }
-          if (goalToRemove.assist && p.id === goalToRemove.assist.id) {
-            newPlayer.stats.assists = Math.max(0, newPlayer.stats.assists - 1);
-          }
-          return newPlayer;
-        });
-      };
-
-      newMatch.rosterA = updateRoster(newMatch.rosterA);
-      newMatch.rosterB = updateRoster(newMatch.rosterB);
-
-      newMatch.events.splice(lastGoalIndex, 1);
-
-      return newMatch;
+    }
+    if (lastGoalIndex === -1) return;
+    const goalToRemove = newMatch.events[lastGoalIndex] as GoalEvent;
+    if (teamId === newMatch.teamA.id) newMatch.scoreA = Math.max(0, newMatch.scoreA - 1);
+    else newMatch.scoreB = Math.max(0, newMatch.scoreB - 1);
+    const updateRoster = (roster: Player[]) => roster.map(p => {
+        const newPlayer = {...p, stats: {...p.stats}};
+        if (p.id === goalToRemove.scorer.id) newPlayer.stats.goals = Math.max(0, newPlayer.stats.goals - 1);
+        if (goalToRemove.assist && p.id === goalToRemove.assist.id) newPlayer.stats.assists = Math.max(0, newPlayer.stats.assists - 1);
+        return newPlayer;
     });
+    newMatch.rosterA = updateRoster(newMatch.rosterA);
+    newMatch.rosterB = updateRoster(newMatch.rosterB);
+    newMatch.events.splice(lastGoalIndex, 1);
+    updateMatch(newMatch);
   };
   
-    const handleRemoveLastPenalty = () => {
-    setMatch(prevMatch => {
-      if (!prevMatch) return null;
-
-      const newMatch = JSON.parse(JSON.stringify(prevMatch));
-
-      let lastPenaltyIndex = -1;
-      for (let i = newMatch.events.length - 1; i >= 0; i--) {
-        if (newMatch.events[i].type === 'penalty') {
-          lastPenaltyIndex = i;
-          break;
-        }
-      }
-
-      if (lastPenaltyIndex === -1) {
-        return prevMatch; // No penalty to remove
-      }
-
-      const penaltyToRemove = newMatch.events[lastPenaltyIndex] as PenaltyEvent;
-
-      // Revert player stats
-      const updateRoster = (roster: Player[]) => {
-        return roster.map(p => {
-          if (p.id === penaltyToRemove.player.id) {
+  const handleRemoveLastPenalty = () => {
+    let newMatch = JSON.parse(JSON.stringify(match));
+    let lastPenaltyIndex = -1;
+    for (let i = newMatch.events.length - 1; i >= 0; i--) {
+        if (newMatch.events[i].type === 'penalty') { lastPenaltyIndex = i; break; }
+    }
+    if (lastPenaltyIndex === -1) return;
+    const penaltyToRemove = newMatch.events[lastPenaltyIndex] as PenaltyEvent;
+    const updateRoster = (roster: Player[]) => roster.map(p => {
+        if (p.id === penaltyToRemove.player.id) {
             const newPlayer = {...p, stats: {...p.stats}};
             newPlayer.stats.penalties = Math.max(0, newPlayer.stats.penalties - penaltyToRemove.duration);
             return newPlayer;
-          }
-          return p;
-        });
-      };
-
-      if (penaltyToRemove.teamId === newMatch.teamA.id) {
-        newMatch.rosterA = updateRoster(newMatch.rosterA);
-      } else {
-        newMatch.rosterB = updateRoster(newMatch.rosterB);
-      }
-      
-      newMatch.events.splice(lastPenaltyIndex, 1);
-
-      return newMatch;
+        }
+        return p;
     });
+    if (penaltyToRemove.teamId === newMatch.teamA.id) newMatch.rosterA = updateRoster(newMatch.rosterA);
+    else newMatch.rosterB = updateRoster(newMatch.rosterB);
+    newMatch.events.splice(lastPenaltyIndex, 1);
+    updateMatch(newMatch);
   };
 
   const handleTimeUpdate = () => {
     let newMinutes = parseInt(editableMinutes, 10);
     let newSeconds = parseInt(editableSeconds, 10);
     let newPeriod = parseInt(editablePeriod, 10);
-
     if (isNaN(newMinutes) || newMinutes < 0) newMinutes = 0;
     if (newMinutes > 20) newMinutes = 20;
     if (isNaN(newSeconds) || newSeconds < 0 || newSeconds > 59) newSeconds = 0;
     if (isNaN(newPeriod) || newPeriod < 1) newPeriod = 1;
-
     if (newMinutes === 20) newSeconds = 0;
-
-    setMatch(prev => ({
-        ...prev!,
-        time: `${String(newMinutes).padStart(2, '0')}:${String(newSeconds).padStart(2, '0')}`,
-        period: newPeriod
-    }));
+    
+    updateMatch({ ...match, time: `${String(newMinutes).padStart(2, '0')}:${String(newSeconds).padStart(2, '0')}`, period: newPeriod });
   };
   
   const handleEndPeriod = () => {
     setIsRunning(false);
-    setMatch(prevMatch => {
-        if (!prevMatch || prevMatch.status === 'finished') return prevMatch;
-        
-        if (prevMatch.period >= 3) {
-            // Expire all active penalties
-            const finalEvents = prevMatch.events.map(e => {
-                if (e.type === 'penalty' && e.status === 'active') {
-                    return { ...e, status: 'expired' };
-                }
-                return e;
-            });
-            return { ...prevMatch, time: "20:00", status: 'finished', events: finalEvents };
-        }
-        return {
-            ...prevMatch,
-            period: prevMatch.period + 1,
-            time: "00:00"
-        };
-    });
+    let newMatch = JSON.parse(JSON.stringify(match));
+    if (newMatch.status === 'finished') return;
+    if (newMatch.period >= 3) {
+        newMatch.events = newMatch.events.map((e: MatchEvent) => {
+            if (e.type === 'penalty' && e.status === 'active') return { ...e, status: 'expired' };
+            return e;
+        });
+        newMatch.time = "20:00";
+        newMatch.status = 'finished';
+    } else {
+        newMatch.period += 1;
+        newMatch.time = "00:00";
+        newMatch.status = 'upcoming';
+    }
+    updateMatch(newMatch);
   };
+
 
   return (
     <div className="space-y-8">
@@ -399,7 +304,7 @@ export default function AdminMatchPage() {
             <div className="p-4 border rounded-lg space-y-4">
                 <h3 className="font-medium">Clock & Period</h3>
                 <div className="flex flex-wrap items-end gap-4">
-                    <Button variant="outline" size="lg" onClick={() => setIsRunning(prev => !prev)} className="w-40">
+                    <Button variant="outline" size="lg" onClick={handleToggleClock} className="w-40" disabled={match.status === 'finished'}>
                         {isRunning ? <Pause className="mr-2" /> : <Play className="mr-2" />}
                         {isRunning ? "Pause" : "Start"} Clock
                     </Button>
@@ -416,8 +321,8 @@ export default function AdminMatchPage() {
                         <Input id="period" type="number" value={editablePeriod} onChange={(e) => setEditablePeriod(e.target.value)} className="w-16" disabled={isRunning} max={3} min={1}/>
                     </div>
                     <Button onClick={handleTimeUpdate} disabled={isRunning}>Set</Button>
-                     <Button variant="destructive" onClick={handleEndPeriod}>
-                        <Square className="mr-2 h-4 w-4" /> End Period
+                     <Button variant="destructive" onClick={handleEndPeriod} disabled={match.status === 'finished'}>
+                        <Square className="mr-2 h-4 w-4" /> {match.period >= 3 ? 'End Match' : 'End Period'}
                     </Button>
                 </div>
             </div>
@@ -426,10 +331,10 @@ export default function AdminMatchPage() {
                 <div className="p-4 border rounded-lg space-y-2">
                     <h3 className="font-medium mb-2">{match.teamA.name}</h3>
                     <div className="flex flex-col sm:flex-row gap-2">
-                        <Button variant="outline" className="w-full" onClick={() => handleAddGoalClick(match.teamA.id)}>
+                        <Button variant="outline" className="w-full" onClick={() => handleAddGoalClick(match.teamA.id)} disabled={isRunning}>
                             <PlusCircle className="mr-2" /> Add Goal
                         </Button>
-                        <Button variant="outline" className="w-full" onClick={() => handleRemoveLastGoal(match.teamA.id)}>
+                        <Button variant="outline" className="w-full" onClick={() => handleRemoveLastGoal(match.teamA.id)} disabled={isRunning}>
                             <MinusCircle className="mr-2" /> Remove Goal
                         </Button>
                     </div>
@@ -437,10 +342,10 @@ export default function AdminMatchPage() {
                  <div className="p-4 border rounded-lg space-y-2">
                     <h3 className="font-medium mb-2">{match.teamB.name}</h3>
                     <div className="flex flex-col sm:flex-row gap-2">
-                        <Button variant="outline" className="w-full" onClick={() => handleAddGoalClick(match.teamB.id)}>
+                        <Button variant="outline" className="w-full" onClick={() => handleAddGoalClick(match.teamB.id)} disabled={isRunning}>
                             <PlusCircle className="mr-2" /> Add Goal
                         </Button>
-                        <Button variant="outline" className="w-full" onClick={() => handleRemoveLastGoal(match.teamB.id)}>
+                        <Button variant="outline" className="w-full" onClick={() => handleRemoveLastGoal(match.teamB.id)} disabled={isRunning}>
                             <MinusCircle className="mr-2" /> Remove Goal
                         </Button>
                     </div>
@@ -456,12 +361,13 @@ export default function AdminMatchPage() {
                             teamBId={match.teamB.id}
                             teamAName={match.teamA.name}
                             teamBName={match.teamB.name}
+                            disabled={isRunning}
                         >
-                            <Button variant="outline" className="w-full h-full flex-1">
+                            <Button variant="outline" className="w-full h-full flex-1" disabled={isRunning}>
                                 <Shield className="mr-2 h-4 w-4" /> Add Penalty
                             </Button>
                         </AddPenaltyDialog>
-                        <Button variant="outline" className="w-full h-full flex-1" onClick={handleRemoveLastPenalty}>
+                        <Button variant="outline" className="w-full h-full flex-1" onClick={handleRemoveLastPenalty} disabled={isRunning}>
                             <MinusCircle className="mr-2" /> Remove Penalty
                         </Button>
                     </div>

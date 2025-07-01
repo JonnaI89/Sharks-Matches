@@ -29,10 +29,11 @@ interface AddPenaltyDialogProps {
   teamBId: string;
   teamAName: string;
   teamBName: string;
+  disabled?: boolean;
   onAddPenalty: (teamId: string, player: Player, duration: number) => void;
 }
 
-export function AddPenaltyDialog({ children, rosterA, rosterB, teamAId, teamBId, teamAName, teamBName, onAddPenalty }: AddPenaltyDialogProps) {
+export function AddPenaltyDialog({ children, rosterA, rosterB, teamAId, teamBId, teamAName, teamBName, disabled, onAddPenalty }: AddPenaltyDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [teamId, setTeamId] = useState<string | undefined>();
   const [playerId, setPlayerId] = useState<string | undefined>();
@@ -55,8 +56,8 @@ export function AddPenaltyDialog({ children, rosterA, rosterB, teamAId, teamBId,
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>{children}</DialogTrigger>
+    <Dialog open={isOpen} onOpenChange={(open) => !disabled && setIsOpen(open)}>
+      <DialogTrigger asChild disabled={disabled}>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Add Penalty</DialogTitle>
