@@ -57,13 +57,14 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
     const [teams, setTeams] = useState<Record<string, Team>>({});
     const [players, setPlayers] = useState<Player[]>([]);
     const [rawMatches, setRawMatches] = useState<any[]>([]);
+    const [isDataLoaded, setIsDataLoaded] = useState(false);
 
     const [loadingStatus, setLoadingStatus] = useState({
         teams: true,
         players: true,
         matches: true,
     });
-    const isDataLoaded = !loadingStatus.teams && !loadingStatus.players && !loadingStatus.matches;
+    const isRawDataLoaded = !loadingStatus.teams && !loadingStatus.players && !loadingStatus.matches;
 
     useEffect(() => {
         const handleError = (error: Error, type: string) => {
@@ -104,7 +105,7 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
     }, [toast]);
 
     useEffect(() => {
-        if (!isDataLoaded) {
+        if (!isRawDataLoaded) {
             return;
         }
 
@@ -174,8 +175,9 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
         }).filter((m): m is Match => m !== null);
         
         setMatches(hydratedMatches);
+        setIsDataLoaded(true);
 
-    }, [rawMatches, teams, players, isDataLoaded]);
+    }, [rawMatches, teams, players, isRawDataLoaded]);
 
     const addMatch = useCallback(async (teamAId: string, teamBId: string, totalPeriods: number, periodDurationMinutes: number) => {
         const teamA = teams[teamAId];
