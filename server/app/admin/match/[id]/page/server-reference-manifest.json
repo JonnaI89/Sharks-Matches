@@ -1,0 +1,16 @@
+{
+  "node": {
+    "40d927e339857abdef4f45ea303f79cb37cf7f97d9": {
+      "workers": {
+        "app/admin/match/[id]/page": {
+          "moduleId": "[project]/.next-internal/server/app/admin/match/[id]/page/actions.js { ACTIONS_MODULE0 => \"[project]/src/ai/flows/key-moment-insights.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
+          "async": false
+        }
+      },
+      "layer": {
+        "app/admin/match/[id]/page": "action-browser"
+      }
+    }
+  },
+  "edge": {}
+}
