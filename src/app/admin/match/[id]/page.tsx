@@ -15,6 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { KeyMoments } from "@/components/key-moments";
 
 const timeToSeconds = (time: string) => {
     if (!time) return 0;
@@ -380,6 +381,8 @@ export default function AdminMatchPage() {
         <RosterTable teamName={match.teamA.name} players={match.rosterA} />
         <RosterTable teamName={match.teamB.name} players={match.rosterB} />
       </div>
+
+      <KeyMoments match={match} />
 
       <AddGoalDialog
         open={isGoalDialogOpen}

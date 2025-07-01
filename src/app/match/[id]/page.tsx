@@ -5,7 +5,6 @@ import { useAdminData } from "@/context/admin-data-context";
 import { Header } from "@/components/header";
 import { EventTimeline } from "@/components/event-timeline";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { KeyMoments } from "@/components/key-moments";
 import { LiveMatchWrapper } from "@/components/live-match-wrapper";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -47,8 +46,6 @@ export default function MatchPage() {
           </CardContent>
         </Card>
         
-        <KeyMoments match={match} />
-
       </main>
     </div>
   );
