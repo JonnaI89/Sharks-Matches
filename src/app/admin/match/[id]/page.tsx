@@ -10,12 +10,12 @@ import { Button } from "@/components/ui/button";
 import { PlusCircle, Shield, Play, Pause, Square, MinusCircle, Hand } from "lucide-react";
 import { AddGoalDialog } from "@/components/admin/add-goal-dialog";
 import { AddPenaltyDialog } from "@/components/admin/add-penalty-dialog";
-import { AddSaveDialog } from "@/components/admin/add-save-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { KeyMoments } from "@/components/key-moments";
 import { RosterTable } from "@/components/roster-table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const timeToSeconds = (time: string) => {
     if (!time) return 0;
@@ -40,7 +40,6 @@ export default function AdminMatchPage() {
   const [editableSeconds, setEditableSeconds] = useState("00");
   const [editablePeriod, setEditablePeriod] = useState("1");
   const [isGoalDialogOpen, setIsGoalDialogOpen] = useState(false);
-  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [goalDialogTeam, setGoalDialogTeam] = useState<string | null>(null);
 
   useEffect(() => {
@@ -144,8 +143,16 @@ export default function AdminMatchPage() {
     await updateMatch(newMatch);
   };
 
-  const handleAddSave = async (teamId: string, goalie: Player) => {
+  const handleRegisterSave = async (teamId: string) => {
     if (!match) return;
+    
+    const goalieId = teamId === match.teamA.id ? match.activeGoalieAId : match.activeGoalieBId;
+    if (!goalieId) return;
+
+    const roster = teamId === match.teamA.id ? match.rosterA : match.rosterB;
+    const goalie = roster.find(p => p.id === goalieId);
+    if (!goalie) return;
+
     let newMatch = JSON.parse(JSON.stringify(match));
     newMatch.time = displayTime;
 
@@ -248,6 +255,17 @@ export default function AdminMatchPage() {
     }
     await updateMatch(newMatch);
   };
+  
+  const handleGoalieChange = async (teamId: string, goalieId: string) => {
+    if (!match) return;
+    let newMatch = JSON.parse(JSON.stringify(match));
+    if (teamId === match.teamA.id) {
+        newMatch.activeGoalieAId = goalieId;
+    } else {
+        newMatch.activeGoalieBId = goalieId;
+    }
+    await updateMatch(newMatch);
+  };
 
   const clockButtonText = () => {
     if (match.status === 'live') return "Pause Clock";
@@ -255,6 +273,8 @@ export default function AdminMatchPage() {
     return "Start Clock";
   };
 
+  const teamAGoalies = match.rosterA.filter(p => p.isGoalie);
+  const teamBGoalies = match.rosterB.filter(p => p.isGoalie);
 
   return (
     <div className="space-y-8">
@@ -302,6 +322,32 @@ export default function AdminMatchPage() {
                             <MinusCircle className="mr-2" /> Remove Goal
                         </Button>
                     </div>
+                    <div className="mt-4 pt-4 border-t">
+                        <h4 className="text-sm font-medium mb-2">Goalkeeping</h4>
+                        <div className="flex gap-2 items-center">
+                            <Select 
+                                value={match.activeGoalieAId || ""}
+                                onValueChange={(goalieId) => handleGoalieChange(match.teamA.id, goalieId)}
+                                disabled={isRunning}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select Goalie" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {teamAGoalies.map(g => (
+                                        <SelectItem key={g.id} value={g.id}>#{g.number} {g.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <Button 
+                                variant="outline"
+                                onClick={() => handleRegisterSave(match.teamA.id)}
+                                disabled={isRunning || !match.activeGoalieAId}
+                            >
+                                <Hand className="mr-2 h-4 w-4" /> Save
+                            </Button>
+                        </div>
+                    </div>
                 </div>
                  <div className="p-4 border rounded-lg space-y-2">
                     <h3 className="font-medium mb-2">{match.teamB.name}</h3>
@@ -313,43 +359,54 @@ export default function AdminMatchPage() {
                             <MinusCircle className="mr-2" /> Remove Goal
                         </Button>
                     </div>
-                </div>
-            </div>
-            <div className="grid md:grid-cols-2 gap-4">
-                <div className="p-4 border rounded-lg space-y-2">
-                    <h3 className="font-medium mb-2">Penalty</h3>
-                    <div className="flex flex-col sm:flex-row gap-2">
-                         <AddPenaltyDialog
-                            rosterA={match.rosterA}
-                            rosterB={match.rosterB}
-                            onAddPenalty={handleAddPenalty}
-                            teamAId={match.teamA.id}
-                            teamBId={match.teamB.id}
-                            teamAName={match.teamA.name}
-                            teamBName={match.teamB.name}
-                            disabled={isRunning}
-                        >
-                            <Button variant="outline" className="w-full" disabled={isRunning}>
-                                <Shield className="mr-2 h-4 w-4" /> Add Penalty
+                     <div className="mt-4 pt-4 border-t">
+                        <h4 className="text-sm font-medium mb-2">Goalkeeping</h4>
+                        <div className="flex gap-2 items-center">
+                            <Select 
+                                value={match.activeGoalieBId || ""}
+                                onValueChange={(goalieId) => handleGoalieChange(match.teamB.id, goalieId)}
+                                disabled={isRunning}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select Goalie" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {teamBGoalies.map(g => (
+                                        <SelectItem key={g.id} value={g.id}>#{g.number} {g.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <Button 
+                                variant="outline"
+                                onClick={() => handleRegisterSave(match.teamB.id)}
+                                disabled={isRunning || !match.activeGoalieBId}
+                            >
+                                <Hand className="mr-2 h-4 w-4" /> Save
                             </Button>
-                        </AddPenaltyDialog>
-                        <Button variant="outline" className="w-full" onClick={handleRemoveLastPenalty} disabled={isRunning}>
-                            <MinusCircle className="mr-2" /> Remove Penalty
-                        </Button>
+                        </div>
                     </div>
                 </div>
-                <div className="p-4 border rounded-lg space-y-2">
-                    <h3 className="font-medium mb-2">Goalkeeping</h3>
-                     <AddSaveDialog
-                        teams={[match.teamA, match.teamB]}
-                        rosters={{ [match.teamA.id]: match.rosterA, [match.teamB.id]: match.rosterB }}
-                        onAddSave={handleAddSave}
+            </div>
+            <div className="p-4 border rounded-lg space-y-2">
+                <h3 className="font-medium mb-2">Penalty</h3>
+                <div className="flex flex-col sm:flex-row gap-2">
+                     <AddPenaltyDialog
+                        rosterA={match.rosterA}
+                        rosterB={match.rosterB}
+                        onAddPenalty={handleAddPenalty}
+                        teamAId={match.teamA.id}
+                        teamBId={match.teamB.id}
+                        teamAName={match.teamA.name}
+                        teamBName={match.teamB.name}
                         disabled={isRunning}
                     >
                         <Button variant="outline" className="w-full" disabled={isRunning}>
-                            <Hand className="mr-2 h-4 w-4" /> Register Save
+                            <Shield className="mr-2 h-4 w-4" /> Add Penalty
                         </Button>
-                    </AddSaveDialog>
+                    </AddPenaltyDialog>
+                    <Button variant="outline" className="w-full" onClick={handleRemoveLastPenalty} disabled={isRunning}>
+                        <MinusCircle className="mr-2" /> Remove Penalty
+                    </Button>
                 </div>
             </div>
         </CardContent>

@@ -30,7 +30,7 @@ import {
 import { CreateMatchDialog } from "@/components/admin/create-match-dialog";
 
 export default function AdminDashboard() {
-  const { matches, teams, addMatch, deleteMatch } = useAdminData();
+  const { matches, teams, players, addMatch, deleteMatch } = useAdminData();
   const [isCreateMatchDialogOpen, setIsCreateMatchDialogOpen] = useState(false);
 
   const statusColors: Record<string, string> = {
@@ -45,8 +45,8 @@ export default function AdminDashboard() {
     await deleteMatch(id);
   };
 
-  const handleAddMatch = async (teamAId: string, teamBId: string, totalPeriods: number, periodDurationMinutes: number, breakDurationMinutes: number) => {
-    await addMatch(teamAId, teamBId, totalPeriods, periodDurationMinutes, breakDurationMinutes);
+  const handleAddMatch = async (teamAId: string, teamBId: string, totalPeriods: number, periodDurationMinutes: number, breakDurationMinutes: number, goalieAId: string | null, goalieBId: string | null) => {
+    await addMatch(teamAId, teamBId, totalPeriods, periodDurationMinutes, breakDurationMinutes, goalieAId, goalieBId);
   };
 
   return (
@@ -124,6 +124,7 @@ export default function AdminDashboard() {
         open={isCreateMatchDialogOpen}
         onOpenChange={setIsCreateMatchDialogOpen}
         teams={Object.values(teams)}
+        players={players}
         onAddMatch={handleAddMatch}
       />
     </>

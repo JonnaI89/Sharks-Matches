@@ -69,4 +69,6 @@ export interface Match {
   events: MatchEvent[];
   rosterA: Player[];
   rosterB: Player[];
+  activeGoalieAId: string | null;
+  activeGoalieBId: string | null;
 }

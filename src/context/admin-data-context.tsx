@@ -11,7 +11,7 @@ interface AdminDataContextType {
     teams: Record<string, Team>;
     players: Player[];
     isDataLoaded: boolean;
-    addMatch: (teamAId: string, teamBId: string, totalPeriods: number, periodDurationMinutes: number, breakDurationMinutes: number) => Promise<void>;
+    addMatch: (teamAId: string, teamBId: string, totalPeriods: number, periodDurationMinutes: number, breakDurationMinutes: number, goalieAId: string | null, goalieBId: string | null) => Promise<void>;
     updateMatch: (match: Match) => Promise<void>;
     deleteMatch: (matchId: string) => Promise<void>;
     addTeam: (team: Omit<Team, 'id'>) => Promise<void>;
@@ -180,7 +180,7 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
 
     }, [rawMatches, teams, players, isRawDataLoaded]);
 
-    const addMatch = useCallback(async (teamAId: string, teamBId: string, totalPeriods: number, periodDurationMinutes: number, breakDurationMinutes: number) => {
+    const addMatch = useCallback(async (teamAId: string, teamBId: string, totalPeriods: number, periodDurationMinutes: number, breakDurationMinutes: number, goalieAId: string | null, goalieBId: string | null) => {
         const teamA = teams[teamAId];
         const teamB = teams[teamBId];
         if (!teamA || !teamB) return;
@@ -190,6 +190,8 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
             time: '00:00', totalPeriods, periodDurationMinutes, breakDurationMinutes, breakEndTime: null, events: [],
             rosterA: players.filter(p => p.teamId === teamAId),
             rosterB: players.filter(p => p.teamId === teamBId),
+            activeGoalieAId: goalieAId,
+            activeGoalieBId: goalieBId,
         };
         
         try {
