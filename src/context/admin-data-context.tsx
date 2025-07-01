@@ -53,10 +53,11 @@ const sanitizeMatchForFirebase = (match: Match | Omit<Match, 'id'>) => {
 
 export function AdminDataProvider({ children }: { children: ReactNode }) {
     const { toast } = useToast();
-    const [matches, setMatches] = useState<Match[] | null>(null);
+    const [matches, setMatches] = useState<Match[]>([]);
     const [teams, setTeams] = useState<Record<string, Team>>({});
     const [players, setPlayers] = useState<Player[]>([]);
-    const [rawMatches, setRawMatches] = useState<any[]>([]);
+    const [isDataLoaded, setIsDataLoaded] = useState(false);
+    const [rawMatches, setRawMatches] = useState<any[] | null>(null);
 
     const [loadingStatus, setLoadingStatus] = useState({
         teams: true,
@@ -104,8 +105,7 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
     }, [toast]);
 
     useEffect(() => {
-        if (!isRawDataLoaded) {
-            setMatches(null);
+        if (!isRawDataLoaded || rawMatches === null) {
             return;
         }
 
@@ -192,6 +192,7 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
         }).filter((m): m is Match => m !== null);
         
         setMatches(hydratedMatches);
+        setIsDataLoaded(true);
 
     }, [rawMatches, teams, players, isRawDataLoaded]);
 
@@ -298,7 +299,7 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
         matches: matches || [],
         teams, 
         players, 
-        isDataLoaded: matches !== null,
+        isDataLoaded,
         addMatch, updateMatch, deleteMatch, addTeam, updateTeam, deleteTeam, addPlayer, deletePlayer,
     };
 
