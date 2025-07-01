@@ -47,7 +47,7 @@ export default function MatchPage() {
     return (
         <div className="flex flex-col min-h-screen">
             <Header />
-            <main className="flex-1 container mx-auto p-4 md:p-8 mt-8 space-y-8">
+            <main className="flex-1 container mx-auto p-4 md:p-8 space-y-8">
                 <Skeleton className="h-32 w-full" />
                 <Skeleton className="h-10 w-full" />
                 <Skeleton className="h-96 w-full" />
@@ -65,17 +65,16 @@ export default function MatchPage() {
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
-      <main className="flex-1 container mx-auto p-4 md:p-8">
-        <Tabs defaultValue="events" className="mt-8">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="summary">Summary</TabsTrigger>
+      <main className="flex-1 container mx-auto p-4 md:p-8 space-y-8">
+        <LiveMatchWrapper match={match} />
+        
+        <Tabs defaultValue="events">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="events">Events</TabsTrigger>
             <TabsTrigger value="stats">Stats</TabsTrigger>
             <TabsTrigger value="analysis">AI Analysis</TabsTrigger>
           </TabsList>
-          <TabsContent value="summary">
-            <LiveMatchWrapper match={match} />
-          </TabsContent>
+          
           <TabsContent value="events">
             <Card>
               <CardHeader>
