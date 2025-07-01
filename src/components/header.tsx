@@ -9,7 +9,7 @@ export function Header() {
         <div className="flex justify-between items-center h-16">
           <Link href="/" className="flex items-center gap-2 text-xl font-bold text-primary">
             <Gamepad2 className="h-6 w-6" />
-            <span>FloorballLive</span>
+            <span>Sarpsborg IBK Live</span>
           </Link>
           <nav>
             <Button variant="ghost" asChild>

@@ -53,7 +53,7 @@ export default function Home() {
         <MatchList />
       </main>
       <footer className="text-center p-4 text-muted-foreground text-sm">
-        <p>&copy; {new Date().getFullYear()} FloorballLive. All rights reserved.</p>
+        <p>&copy; {new Date().getFullYear()} Sarpsborg IBK Live. All rights reserved.</p>
       </footer>
     </div>
   );

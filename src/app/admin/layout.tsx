@@ -30,7 +30,7 @@ export default function AdminLayout({
               <SidebarHeader>
                 <Link href="/" className="flex items-center gap-2 text-lg font-bold text-primary">
                   <Gamepad2 className="h-6 w-6" />
-                  <span className="group-data-[collapsible=icon]:hidden">FloorballLive</span>
+                  <span className="group-data-[collapsible=icon]:hidden">Sarpsborg IBK Live</span>
                 </Link>
               </SidebarHeader>
               <SidebarMenu>
