@@ -65,17 +65,17 @@ export function AddPlayerDialog({ open, onOpenChange, teamId, onAddPlayer }: Add
                 Enter the details for the new player. Click save when you're done.
               </DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4 py-4">
               <FormField
                 control={form.control}
                 name="name"
                 render={({ field }) => (
-                  <FormItem className="grid grid-cols-4 items-center gap-4">
-                    <FormLabel className="text-right">Name</FormLabel>
+                  <FormItem>
+                    <FormLabel>Name</FormLabel>
                     <FormControl>
-                      <Input {...field} className="col-span-3" />
+                      <Input {...field} placeholder="Player's name" />
                     </FormControl>
-                    <FormMessage className="col-span-4 text-right" />
+                    <FormMessage />
                   </FormItem>
                 )}
               />
@@ -83,12 +83,12 @@ export function AddPlayerDialog({ open, onOpenChange, teamId, onAddPlayer }: Add
                 control={form.control}
                 name="number"
                 render={({ field }) => (
-                  <FormItem className="grid grid-cols-4 items-center gap-4">
-                    <FormLabel className="text-right">Number</FormLabel>
+                  <FormItem>
+                    <FormLabel>Number</FormLabel>
                     <FormControl>
-                      <Input type="number" {...field} className="col-span-3" />
+                      <Input type="number" {...field} placeholder="99" />
                     </FormControl>
-                    <FormMessage className="col-span-4 text-right" />
+                    <FormMessage />
                   </FormItem>
                 )}
               />
@@ -96,7 +96,7 @@ export function AddPlayerDialog({ open, onOpenChange, teamId, onAddPlayer }: Add
                 control={form.control}
                 name="isGoalie"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm col-span-4">
+                  <FormItem className="col-span-2 flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
                     <div className="space-y-0.5">
                        <FormLabel>Goalie</FormLabel>
                     </div>
