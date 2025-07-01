@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { notFound, useParams } from "next/navigation";
 import { useAdminData } from "@/context/admin-data-context";
 import type { Match, Player, GoalEvent, PenaltyEvent, MatchEvent } from "@/lib/types";
@@ -64,6 +64,13 @@ export default function AdminMatchPage() {
   const { matches, updateMatch, isDataLoaded } = useAdminData();
   
   const match = matches.find((m) => m.id === params.id);
+  const matchRef = useRef(match); // Use a ref to hold match data for the interval
+
+  // Keep the ref updated whenever the match from context changes
+  useEffect(() => {
+    matchRef.current = match;
+  }, [match]);
+
 
   // Local state for UI controls, not the match data itself
   const [isRunning, setIsRunning] = useState(false);
@@ -84,12 +91,13 @@ export default function AdminMatchPage() {
     }
   }, [match]);
   
+  // This is the clock timer. It no longer depends on `matches` to prevent loops.
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (isRunning && match) {
+    if (isRunning) {
       interval = setInterval(() => {
-        // We read the latest match from the context inside the interval to avoid stale state
-        const currentMatch = matches.find(m => m.id === params.id);
+        // Use the ref to get current match data without adding a dependency
+        const currentMatch = matchRef.current;
         if (!currentMatch) {
             setIsRunning(false);
             return;
@@ -120,13 +128,13 @@ export default function AdminMatchPage() {
           return event;
         });
 
-        // This is async, but we don't need to wait for it here.
-        // The context will update the state, and the UI will re-render.
+        // This updates the database. The context will then update the `match` prop,
+        // which updates our ref for the next interval tick.
         updateMatch(newMatch);
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [isRunning, matches, params.id, updateMatch]);
+  }, [isRunning, updateMatch]); // The dependency array is now stable.
 
   if (!isDataLoaded) {
       return (

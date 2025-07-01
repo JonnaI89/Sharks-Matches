@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import type { Match, Player, Team, MatchEvent } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, doc, setDoc, addDoc, deleteDoc } from 'firebase/firestore';
@@ -147,7 +147,7 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
 
     }, [rawMatches, teams, players, isDataLoaded]);
 
-    const addMatch = async (teamAId: string, teamBId: string, totalPeriods: number, periodDurationMinutes: number) => {
+    const addMatch = useCallback(async (teamAId: string, teamBId: string, totalPeriods: number, periodDurationMinutes: number) => {
         const teamA = teams[teamAId];
         const teamB = teams[teamBId];
         if (!teamA || !teamB) return;
@@ -165,9 +165,9 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
         } catch (error) {
             console.error("Error adding match: ", error);
         }
-    };
+    }, [players, teams]);
 
-    const updateMatch = async (matchToUpdate: Match) => {
+    const updateMatch = useCallback(async (matchToUpdate: Match) => {
         try {
             const sanitizedMatch = sanitizeMatchForFirebase(matchToUpdate);
             const { id, ...matchData } = sanitizedMatch;
@@ -175,25 +175,25 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
         } catch (error) {
             console.error("Error updating match: ", error);
         }
-    };
+    }, []);
 
-    const deleteMatch = async (matchId: string) => {
+    const deleteMatch = useCallback(async (matchId: string) => {
         try {
             await deleteDoc(doc(db, "matches", matchId));
         } catch (error) {
             console.error("Error deleting match: ", error);
         }
-    };
+    }, []);
     
-    const addTeam = async (newTeam: Omit<Team, 'id'>) => {
+    const addTeam = useCallback(async (newTeam: Omit<Team, 'id'>) => {
         try {
             await addDoc(collection(db, "teams"), newTeam);
         } catch (error) {
             console.error("Error adding team: ", error);
         }
-    };
+    }, []);
     
-    const updateTeam = async (teamId: string, teamData: Omit<Team, 'id'>) => {
+    const updateTeam = useCallback(async (teamId: string, teamData: Omit<Team, 'id'>) => {
         try {
             const teamDocRef = doc(db, "teams", teamId);
             await setDoc(teamDocRef, teamData);
@@ -205,9 +205,9 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
                 variant: "destructive",
             });
         }
-    };
+    }, [toast]);
 
-    const deleteTeam = async (teamId: string) => {
+    const deleteTeam = useCallback(async (teamId: string) => {
         if (players.some(p => p.teamId === teamId)) {
             toast({ title: "Cannot Remove Team", description: "Please remove all players from the team first.", variant: "destructive" });
             return;
@@ -221,9 +221,9 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
         } catch (error) {
             console.error("Error deleting team: ", error);
         }
-    };
+    }, [matches, players, toast]);
 
-    const addPlayer = async (teamId: string, newPlayer: Omit<Player, 'id' | 'teamId' | 'stats'>) => {
+    const addPlayer = useCallback(async (teamId: string, newPlayer: Omit<Player, 'id' | 'teamId' | 'stats'>) => {
         const playerToAdd = {
             ...newPlayer,
             teamId: teamId,
@@ -234,15 +234,15 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
         } catch(e) {
             console.error("Error adding player: ", e);
         }
-    };
+    }, []);
 
-    const deletePlayer = async (playerId: string) => {
+    const deletePlayer = useCallback(async (playerId: string) => {
         try {
             await deleteDoc(doc(db, "players", playerId));
         } catch(e) {
             console.error("Error deleting player: ", e);
         }
-    };
+    }, []);
 
     const value = {
         matches, teams, players, isDataLoaded,
