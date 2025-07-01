@@ -8,9 +8,9 @@ export function RosterTable({ teamName, players }: { teamName: string; players: 
 
     const calculateSavePercentage = (saves: number, goalsAgainst: number) => {
         const totalShots = saves + goalsAgainst;
-        if (totalShots === 0) return "1.000";
-        const percentage = (saves / totalShots).toFixed(3);
-        return percentage.startsWith('0') ? percentage.substring(1) : percentage;
+        if (totalShots === 0) return "0.0%";
+        const percentage = (saves / totalShots) * 100;
+        return `${percentage.toFixed(1)}%`;
     };
 
     return (
