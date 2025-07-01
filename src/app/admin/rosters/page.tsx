@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useAdminData } from "@/context/admin-data-context";
 import type { Player, Team } from "@/lib/types";
-import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Trash2 } from "lucide-react";
@@ -24,8 +23,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function RosterManagementPage() {
-  const { players, setPlayers, teams, setTeams, matches } = useAdminData();
-  const { toast } = useToast();
+  const { players, teams, addPlayer, deletePlayer, addTeam, deleteTeam } = useAdminData();
   const [isAddPlayerDialogOpen, setIsAddPlayerDialogOpen] = useState(false);
   const [isAddTeamDialogOpen, setIsAddTeamDialogOpen] = useState(false);
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
@@ -35,54 +33,20 @@ export default function RosterManagementPage() {
     setIsAddPlayerDialogOpen(true);
   };
 
-  const handleAddPlayer = (teamId: string, newPlayer: Omit<Player, 'id' | 'teamId' | 'stats'>) => {
-    setPlayers(prev => [
-      ...prev,
-      {
-        ...newPlayer,
-        id: `p${Date.now()}`,
-        teamId: teamId,
-        stats: { goals: 0, assists: 0, penalties: 0 },
-      },
-    ]);
+  const handleAddPlayer = async (teamId: string, newPlayer: Omit<Player, 'id' | 'teamId' | 'stats'>) => {
+    await addPlayer(teamId, newPlayer);
   };
 
-  const handleRemovePlayer = (playerId: string) => {
-    setPlayers(prev => prev.filter(p => p.id !== playerId));
+  const handleRemovePlayer = async (playerId: string) => {
+    await deletePlayer(playerId);
   };
   
-  const handleAddTeam = (newTeam: Omit<Team, 'id'>) => {
-    const newTeamId = `team${Date.now()}`;
-    const teamToAdd: Team = { ...newTeam, id: newTeamId };
-    setTeams(prev => ({
-      ...prev,
-      [newTeamId]: teamToAdd,
-    }));
+  const handleAddTeam = async (newTeam: Omit<Team, 'id'>) => {
+    await addTeam(newTeam);
   };
   
-  const handleRemoveTeam = (teamId: string) => {
-    if (players.some(p => p.teamId === teamId)) {
-      toast({
-        title: "Cannot Remove Team",
-        description: "Please remove all players from the team before deleting it.",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (matches.some(m => m.teamA.id === teamId || m.teamB.id === teamId)) {
-      toast({
-        title: "Cannot Remove Team",
-        description: "This team is part of an existing match. Please remove the match first.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setTeams(prev => {
-      const newTeams = { ...prev };
-      delete newTeams[teamId];
-      return newTeams;
-    });
+  const handleRemoveTeam = async (teamId: string) => {
+    await deleteTeam(teamId);
   };
 
   return (
@@ -119,7 +83,7 @@ export default function RosterManagementPage() {
                     <AlertDialogHeader>
                       <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        This action cannot be undone. This will permanently delete the team, provided it has no players and is not in any match.
+                        This action cannot be undone. This will permanently delete the team from the database.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

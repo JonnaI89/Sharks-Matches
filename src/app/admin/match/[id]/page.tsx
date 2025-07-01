@@ -61,7 +61,7 @@ function RosterTable({ teamName, players }: { teamName: string; players: Player[
 
 export default function AdminMatchPage() {
   const params = useParams();
-  const { matches, setMatches, isDataLoaded } = useAdminData();
+  const { matches, updateMatch, isDataLoaded } = useAdminData();
   
   const match = matches.find((m) => m.id === params.id);
 
@@ -83,10 +83,6 @@ export default function AdminMatchPage() {
         setIsRunning(match.status === 'live' && timeToSeconds(match.time) < periodDurationInSeconds);
     }
   }, [match]);
-
-  const updateMatch = (updatedMatch: Match) => {
-    setMatches(prevMatches => prevMatches.map(m => m.id === updatedMatch.id ? updatedMatch : m));
-  };
   
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -124,11 +120,13 @@ export default function AdminMatchPage() {
           return event;
         });
 
+        // This is async, but we don't need to wait for it here.
+        // The context will update the state, and the UI will re-render.
         updateMatch(newMatch);
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [isRunning, matches, params.id, setMatches]);
+  }, [isRunning, matches, params.id, updateMatch]);
 
   if (!isDataLoaded) {
       return (
@@ -147,12 +145,12 @@ export default function AdminMatchPage() {
     return notFound();
   }
   
-  const handleToggleClock = () => {
+  const handleToggleClock = async () => {
       const newIsRunning = !isRunning;
       const newStatus = newIsRunning ? 'live' : (match.status === 'finished' ? 'finished' : 'upcoming');
       setIsRunning(newIsRunning);
       if (match.status !== newStatus) {
-           updateMatch({ ...match, status: newStatus });
+           await updateMatch({ ...match, status: newStatus });
       }
   };
 
@@ -161,7 +159,8 @@ export default function AdminMatchPage() {
     setIsGoalDialogOpen(true);
   };
 
-  const handleAddGoal = (teamId: string, scorer: Player, assist: Player | undefined) => {
+  const handleAddGoal = async (teamId: string, scorer: Player, assist: Player | undefined) => {
+    if (!match) return;
     let newMatch = JSON.parse(JSON.stringify(match));
     const newGoalEvent: GoalEvent = {
         id: `e${newMatch.events.length + 1}`, type: 'goal', teamId, scorer, assist, time: newMatch.time, period: newMatch.period,
@@ -185,10 +184,11 @@ export default function AdminMatchPage() {
       const penaltyIndex = newMatch.events.findIndex((e: MatchEvent) => e.id === penaltyToCancelId);
       if (penaltyIndex > -1) (newMatch.events[penaltyIndex] as PenaltyEvent).status = 'cancelled';
     }
-    updateMatch(newMatch);
+    await updateMatch(newMatch);
   };
   
-  const handleAddPenalty = (teamId: string, player: Player, duration: number) => {
+  const handleAddPenalty = async (teamId: string, player: Player, duration: number) => {
+    if (!match) return;
     let newMatch = JSON.parse(JSON.stringify(match));
     const periodDurationInSeconds = newMatch.periodDurationMinutes * 60;
     const currentTimeInSeconds = timeToSeconds(newMatch.time);
@@ -215,10 +215,11 @@ export default function AdminMatchPage() {
     });
     if (teamId === newMatch.teamA.id) newMatch.rosterA = updateRoster(newMatch.rosterA);
     else newMatch.rosterB = updateRoster(newMatch.rosterB);
-    updateMatch(newMatch);
+    await updateMatch(newMatch);
   };
 
-  const handleRemoveLastGoal = (teamId: string) => {
+  const handleRemoveLastGoal = async (teamId: string) => {
+    if (!match) return;
     let newMatch = JSON.parse(JSON.stringify(match));
     let lastGoalIndex = -1;
     for (let i = newMatch.events.length - 1; i >= 0; i--) {
@@ -240,10 +241,11 @@ export default function AdminMatchPage() {
     newMatch.rosterA = updateRoster(newMatch.rosterA);
     newMatch.rosterB = updateRoster(newMatch.rosterB);
     newMatch.events.splice(lastGoalIndex, 1);
-    updateMatch(newMatch);
+    await updateMatch(newMatch);
   };
   
-  const handleRemoveLastPenalty = () => {
+  const handleRemoveLastPenalty = async () => {
+    if (!match) return;
     let newMatch = JSON.parse(JSON.stringify(match));
     let lastPenaltyIndex = -1;
     for (let i = newMatch.events.length - 1; i >= 0; i--) {
@@ -262,10 +264,11 @@ export default function AdminMatchPage() {
     if (penaltyToRemove.teamId === newMatch.teamA.id) newMatch.rosterA = updateRoster(newMatch.rosterA);
     else newMatch.rosterB = updateRoster(newMatch.rosterB);
     newMatch.events.splice(lastPenaltyIndex, 1);
-    updateMatch(newMatch);
+    await updateMatch(newMatch);
   };
 
-  const handleTimeUpdate = () => {
+  const handleTimeUpdate = async () => {
+    if (!match) return;
     let newMinutes = parseInt(editableMinutes, 10);
     let newSeconds = parseInt(editableSeconds, 10);
     let newPeriod = parseInt(editablePeriod, 10);
@@ -275,10 +278,11 @@ export default function AdminMatchPage() {
     if (isNaN(newPeriod) || newPeriod < 1) newPeriod = 1;
     if (newMinutes === match.periodDurationMinutes) newSeconds = 0;
     
-    updateMatch({ ...match, time: `${String(newMinutes).padStart(2, '0')}:${String(newSeconds).padStart(2, '0')}`, period: newPeriod });
+    await updateMatch({ ...match, time: `${String(newMinutes).padStart(2, '0')}:${String(newSeconds).padStart(2, '0')}`, period: newPeriod });
   };
   
-  const handleEndPeriod = () => {
+  const handleEndPeriod = async () => {
+    if (!match) return;
     setIsRunning(false);
     let newMatch = JSON.parse(JSON.stringify(match));
     if (newMatch.status === 'finished') return;
@@ -294,7 +298,7 @@ export default function AdminMatchPage() {
         newMatch.time = "00:00";
         newMatch.status = 'upcoming';
     }
-    updateMatch(newMatch);
+    await updateMatch(newMatch);
   };
 
 
@@ -327,7 +331,7 @@ export default function AdminMatchPage() {
                         <Input id="period" type="number" value={editablePeriod} onChange={(e) => setEditablePeriod(e.target.value)} className="w-16" disabled={isRunning} max={match.totalPeriods} min={1}/>
                     </div>
                     <Button onClick={handleTimeUpdate} disabled={isRunning}>Set</Button>
-                     <Button variant="destructive" onClick={handleEndPeriod} disabled={match.status === 'finished'}>
+                     <Button variant="destructive" onClick={handleEndPeriod} disabled={isRunning || match.status === 'finished'}>
                         <Square className="mr-2 h-4 w-4" /> {match.period >= match.totalPeriods ? 'End Match' : 'End Period'}
                     </Button>
                 </div>

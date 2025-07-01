@@ -27,11 +27,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import type { Match } from "@/lib/types";
 import { CreateMatchDialog } from "@/components/admin/create-match-dialog";
 
 export default function AdminDashboard() {
-  const { matches, setMatches, players, teams } = useAdminData();
+  const { matches, teams, addMatch, deleteMatch } = useAdminData();
   const [isCreateMatchDialogOpen, setIsCreateMatchDialogOpen] = useState(false);
 
   const statusColors = {
@@ -40,33 +39,12 @@ export default function AdminDashboard() {
     finished: "bg-green-500 text-white",
   };
 
-  const handleRemoveMatch = (id: string) => {
-    setMatches((prevMatches) => prevMatches.filter((match) => match.id !== id));
+  const handleRemoveMatch = async (id: string) => {
+    await deleteMatch(id);
   };
 
-  const handleAddMatch = (teamAId: string, teamBId: string, totalPeriods: number, periodDurationMinutes: number) => {
-    const teamA = teams[teamAId];
-    const teamB = teams[teamBId];
-
-    if (!teamA || !teamB) return;
-
-    const newMatch: Match = {
-      id: `match${Date.now()}`,
-      status: 'upcoming',
-      teamA,
-      teamB,
-      scoreA: 0,
-      scoreB: 0,
-      period: 1,
-      time: '00:00',
-      totalPeriods,
-      periodDurationMinutes,
-      events: [],
-      rosterA: players.filter(p => p.teamId === teamAId),
-      rosterB: players.filter(p => p.teamId === teamBId),
-    };
-
-    setMatches(prev => [...prev, newMatch]);
+  const handleAddMatch = async (teamAId: string, teamBId: string, totalPeriods: number, periodDurationMinutes: number) => {
+    await addMatch(teamAId, teamBId, totalPeriods, periodDurationMinutes);
   };
 
   return (
@@ -122,7 +100,7 @@ export default function AdminDashboard() {
                         <AlertDialogHeader>
                           <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                           <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete the match from the list.
+                            This action cannot be undone. This will permanently delete the match from the database.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
