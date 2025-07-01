@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { notFound, useParams } from "next/navigation";
 import { useAdminData } from "@/context/admin-data-context";
 import type { Match, Player, GoalEvent, PenaltyEvent, MatchEvent } from "@/lib/types";
@@ -62,80 +62,66 @@ function RosterTable({ teamName, players }: { teamName: string; players: Player[
 export default function AdminMatchPage() {
   const params = useParams();
   const { matches, updateMatch, isDataLoaded } = useAdminData();
-  
   const match = matches.find((m) => m.id === params.id);
-  const matchRef = useRef(match); // Use a ref to hold match data for the interval
 
-  // Keep the ref updated whenever the match from context changes
-  useEffect(() => {
-    matchRef.current = match;
-  }, [match]);
-
-
-  // Local state for UI controls, not the match data itself
+  // Local state for UI controls to prevent feedback loops
   const [isRunning, setIsRunning] = useState(false);
+  const [displayTime, setDisplayTime] = useState("00:00");
   const [editableMinutes, setEditableMinutes] = useState("00");
   const [editableSeconds, setEditableSeconds] = useState("00");
   const [editablePeriod, setEditablePeriod] = useState("1");
   const [isGoalDialogOpen, setIsGoalDialogOpen] = useState(false);
   const [goalDialogTeam, setGoalDialogTeam] = useState<string | null>(null);
 
+  // Effect 1: Synchronize local state from database (match prop)
   useEffect(() => {
     if (match) {
+        setDisplayTime(match.time);
         const [m, s] = match.time.split(':');
         setEditableMinutes(m);
         setEditableSeconds(s);
         setEditablePeriod(String(match.period));
-        const periodDurationInSeconds = (match.periodDurationMinutes || 20) * 60;
-        setIsRunning(match.status === 'live' && timeToSeconds(match.time) < periodDurationInSeconds);
+        setIsRunning(match.status === 'live');
     }
   }, [match]);
   
-  // This is the clock timer. It no longer depends on `matches` to prevent loops.
+  // Effect 2: Visual clock ticker. DOES NOT WRITE TO DB.
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (isRunning) {
+    if (isRunning && match) {
       interval = setInterval(() => {
-        // Use the ref to get current match data without adding a dependency
-        const currentMatch = matchRef.current;
-        if (!currentMatch) {
-            setIsRunning(false);
-            return;
-        }
+        setDisplayTime(prevTime => {
+            const currentTimeInSeconds = timeToSeconds(prevTime);
+            const periodDurationInSeconds = match.periodDurationMinutes * 60;
 
-        let newMatch = JSON.parse(JSON.stringify(currentMatch));
-        const currentTimeInSeconds = timeToSeconds(newMatch.time);
-        const periodDurationInSeconds = newMatch.periodDurationMinutes * 60;
-        
-        if (currentTimeInSeconds >= periodDurationInSeconds) {
-            setIsRunning(false);
-            newMatch.time = secondsToTime(periodDurationInSeconds);
-            newMatch.status = 'upcoming'; // To indicate period end, admin must click "End Period"
-            updateMatch(newMatch);
-            return;
-        }
-
-        newMatch.time = secondsToTime(currentTimeInSeconds + 1);
-        
-        newMatch.events = newMatch.events.map((event: PenaltyEvent | GoalEvent) => {
-          if (event.type === 'penalty' && event.status === 'active' && event.expiresAt) {
-              const expirationTimeInSeconds = (event.expiresAt.period - 1) * periodDurationInSeconds + timeToSeconds(event.expiresAt.time);
-              const gameTimeInSeconds = (newMatch.period - 1) * periodDurationInSeconds + timeToSeconds(newMatch.time);
-              if (gameTimeInSeconds >= expirationTimeInSeconds) {
-                  return { ...event, status: 'expired' };
-              }
-          }
-          return event;
+            if (currentTimeInSeconds >= periodDurationInSeconds) {
+                setIsRunning(false); // Stop visual clock
+                return secondsToTime(periodDurationInSeconds);
+            }
+            return secondsToTime(currentTimeInSeconds + 1);
         });
-
-        // This updates the database. The context will then update the `match` prop,
-        // which updates our ref for the next interval tick.
-        updateMatch(newMatch);
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [isRunning, updateMatch]); // The dependency array is now stable.
+  }, [isRunning, match]);
 
+  const handleToggleClock = async () => {
+      if (!match) return;
+      const newIsRunning = !isRunning;
+      
+      // When pausing, we persist the current visual time to DB.
+      // When starting, we just set the status to 'live'. DB time is the correct start time.
+      const updatedMatch = {
+          ...match,
+          status: 'live' as const, // Match is live once started, even if paused.
+          time: !newIsRunning ? displayTime : match.time,
+      };
+
+      // Update the database. This will trigger onSnapshot and update the `match` prop,
+      // which in turn updates our local state via Effect 1.
+      await updateMatch(updatedMatch);
+  };
+  
   if (!isDataLoaded) {
       return (
         <div className="space-y-8">
@@ -153,23 +139,6 @@ export default function AdminMatchPage() {
     return notFound();
   }
   
-  const handleToggleClock = async () => {
-      if (!match) return;
-      const newIsRunning = !isRunning;
-
-      // If we start the clock, the status is 'live'.
-      // If we pause it, the status should remain as it is (e.g. 'live').
-      // It should only become 'upcoming' when the period is explicitly ended.
-      const newStatus = newIsRunning ? 'live' : match.status;
-
-      setIsRunning(newIsRunning);
-
-      // Only update the status in the database if it actually changes.
-      if (match.status !== newStatus) {
-           await updateMatch({ ...match, status: newStatus });
-      }
-  };
-
   const handleAddGoalClick = (teamId: string) => {
     setGoalDialogTeam(teamId);
     setIsGoalDialogOpen(true);
@@ -178,6 +147,8 @@ export default function AdminMatchPage() {
   const handleAddGoal = async (teamId: string, scorer: Player, assist: Player | undefined) => {
     if (!match) return;
     let newMatch = JSON.parse(JSON.stringify(match));
+    newMatch.time = displayTime; // Use current visual time for the event
+
     const newGoalEvent: GoalEvent = {
         id: `e${newMatch.events.length + 1}`, type: 'goal', teamId, scorer, assist, time: newMatch.time, period: newMatch.period,
     };
@@ -206,6 +177,7 @@ export default function AdminMatchPage() {
   const handleAddPenalty = async (teamId: string, player: Player, duration: number) => {
     if (!match) return;
     let newMatch = JSON.parse(JSON.stringify(match));
+    newMatch.time = displayTime; // Use current visual time
     const periodDurationInSeconds = newMatch.periodDurationMinutes * 60;
     const currentTimeInSeconds = timeToSeconds(newMatch.time);
     const penaltyEndTimeInSeconds = currentTimeInSeconds + duration * 60;
@@ -320,7 +292,8 @@ export default function AdminMatchPage() {
 
   return (
     <div className="space-y-8">
-      <Scoreboard match={match} />
+      {/* The scoreboard now receives a temporary match object with the visual time for a smooth display */}
+      <Scoreboard match={{...match, time: displayTime}} />
       
       <Card>
         <CardHeader>
