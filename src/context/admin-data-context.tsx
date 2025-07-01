@@ -60,6 +60,7 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
     const [matches, setMatches] = useState<Match[]>([]);
     const [teams, setTeams] = useState<Record<string, Team>>({});
     const [players, setPlayers] = useState<Player[]>([]);
+    const [rawMatches, setRawMatches] = useState<any[]>([]); // For raw data from Firestore
     const [isDataLoaded, setIsDataLoaded] = useState(false);
 
     useEffect(() => {
@@ -88,12 +89,11 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
         }, (err) => handleError(err, "players"));
 
         const unsubMatches = onSnapshot(collection(db, "matches"), (snapshot) => {
-            // We get the raw match data here and will hydrate it in another effect
-            // when all data sources are ready.
-             setMatches(snapshot.docs.map(doc => ({
+            // We set the raw, unhydrated data here. This breaks the infinite loop.
+             setRawMatches(snapshot.docs.map(doc => ({
                  id: doc.id,
                  ...doc.data()
-             } as unknown as Match))); // We cast here, but will properly hydrate below
+             })));
         }, (err) => handleError(err, "matches"));
 
         return () => {
@@ -103,48 +103,55 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
         };
     }, [toast]);
 
+    // This effect re-hydrates the matches whenever the raw data changes.
+    // It no longer depends on `matches`, so the loop is broken.
     useEffect(() => {
-        // This effect re-hydrates the matches whenever the raw matches, teams, or players change.
-        if (Object.keys(teams).length > 0 || matches.length > 0 || players.length > 0) {
-            const hydratedMatches = matches.map(match => {
-                const teamA = teams[match.teamA.id];
-                const teamB = teams[match.teamB.id];
-
-                if (!teamA || !teamB) return null;
-
-                const hydratedMatch: Match = {
-                    ...match,
-                    teamA,
-                    teamB,
-                    rosterA: players.filter(p => p.teamId === teamA.id),
-                    rosterB: players.filter(p => p.teamId === teamB.id),
-                    events: (match.events || []).map((event: any) => {
-                        if (event.type === 'goal') {
-                            return {
-                                ...event,
-                                scorer: players.find(p => p.id === event.scorer.id),
-                                assist: event.assist ? players.find(p => p.id === event.assist.id) : undefined,
-                            };
-                        }
-                        if (event.type === 'penalty') {
-                             return {
-                                ...event,
-                                player: players.find(p => p.id === event.player.id),
-                            };
-                        }
-                        return event;
-                    }).filter(Boolean)
-                };
-                return hydratedMatch;
-            }).filter((m): m is Match => m !== null);
-            setMatches(hydratedMatches);
-
-            if(!isDataLoaded) {
-                setIsDataLoaded(true);
+        // Wait until all data sources are populated to avoid partial hydration
+        if (!rawMatches.length || Object.keys(teams).length === 0) {
+             // If all data is loaded and rawMatches becomes empty, update immediately
+            if (isDataLoaded && rawMatches.length === 0) {
+                 setMatches([]);
             }
+            return;
         }
 
-    }, [teams, players, matches, isDataLoaded]);
+        const hydratedMatches = rawMatches.map(match => {
+            const teamA = teams[match.teamA?.id];
+            const teamB = teams[match.teamB?.id];
+
+            if (!teamA || !teamB) return null;
+
+            const hydratedMatch: Match = {
+                ...match,
+                teamA,
+                teamB,
+                rosterA: players.filter(p => p.teamId === teamA.id),
+                rosterB: players.filter(p => p.teamId === teamB.id),
+                events: (match.events || []).map((event: any) => {
+                    if (event.type === 'goal') {
+                        const scorer = players.find(p => p.id === event.scorer?.id);
+                        if (!scorer) return null; // Player might have been deleted
+                        const assist = event.assist?.id ? players.find(p => p.id === event.assist.id) : undefined;
+                        return { ...event, scorer, assist: assist || undefined };
+                    }
+                    if (event.type === 'penalty') {
+                         const player = players.find(p => p.id === event.player?.id);
+                         if (!player) return null; // Player might have been deleted
+                         return { ...event, player };
+                    }
+                    return event;
+                }).filter((e): e is MatchEvent => e !== null)
+            };
+            return hydratedMatch;
+        }).filter((m): m is Match => m !== null);
+        
+        setMatches(hydratedMatches);
+
+        if(!isDataLoaded) {
+            setIsDataLoaded(true);
+        }
+
+    }, [rawMatches, teams, players, isDataLoaded]);
 
     const addMatch = async (teamAId: string, teamBId: string, totalPeriods: number, periodDurationMinutes: number) => {
         const teamA = teams[teamAId];
