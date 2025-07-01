@@ -76,23 +76,25 @@ export default function AdminMatchPage() {
   const handleToggleClock = async () => {
     if (!match || match.status === 'finished') return;
 
-    let newStatus: Match['status'];
-    let newTime = match.time;
-
-    if (match.status === 'live') {
-      newStatus = 'paused';
-      newTime = displayTime;
-    } else {
-      newStatus = 'live';
+    let newMatch = JSON.parse(JSON.stringify(match));
+    
+    switch(newMatch.status) {
+        case 'live':
+            newMatch.status = 'paused';
+            newMatch.time = displayTime; // Capture current time
+            break;
+        case 'paused':
+        case 'upcoming':
+            newMatch.status = 'live';
+            break;
+        case 'break':
+            newMatch.status = 'live';
+            newMatch.breakEndTime = null;
+            newMatch.time = '00:00'; // Start of period
+            break;
     }
-
-    const updatedMatch = {
-        ...match,
-        status: newStatus,
-        time: newTime,
-    };
-
-    await updateMatch(updatedMatch);
+    
+    await updateMatch(newMatch);
   };
   
   if (!isDataLoaded) {
@@ -212,7 +214,7 @@ export default function AdminMatchPage() {
   };
 
   const handleTimeUpdate = async () => {
-    if (!match) return;
+    if (!match || match.status === 'break') return;
     let newMinutes = parseInt(editableMinutes, 10);
     let newSeconds = parseInt(editableSeconds, 10);
     let newPeriod = parseInt(editablePeriod, 10);
@@ -229,7 +231,8 @@ export default function AdminMatchPage() {
     if (!match) return;
     setIsRunning(false);
     let newMatch = JSON.parse(JSON.stringify(match));
-    if (newMatch.status === 'finished') return;
+    if (newMatch.status === 'finished' || newMatch.status === 'break') return;
+
     if (newMatch.period >= newMatch.totalPeriods) {
         newMatch.events = newMatch.events.map((e: MatchEvent) => {
             if (e.type === 'penalty' && e.status === 'active') return { ...e, status: 'expired' };
@@ -238,11 +241,18 @@ export default function AdminMatchPage() {
         newMatch.time = secondsToTime(newMatch.periodDurationMinutes * 60);
         newMatch.status = 'finished';
     } else {
+        newMatch.status = 'break';
+        newMatch.breakEndTime = Date.now() + (newMatch.breakDurationMinutes || 15) * 60 * 1000;
         newMatch.period += 1;
         newMatch.time = "00:00";
-        newMatch.status = 'upcoming';
     }
     await updateMatch(newMatch);
+  };
+
+  const clockButtonText = () => {
+    if (match.status === 'live') return "Pause Clock";
+    if (match.status === 'break') return "Start Period";
+    return "Start Clock";
   };
 
 
@@ -260,22 +270,22 @@ export default function AdminMatchPage() {
                 <div className="flex flex-wrap items-end gap-4">
                     <Button variant="outline" size="lg" onClick={handleToggleClock} className="w-40" disabled={match.status === 'finished'}>
                         {isRunning ? <Pause className="mr-2" /> : <Play className="mr-2" />}
-                        {isRunning ? "Pause" : "Start"} Clock
+                        {clockButtonText()}
                     </Button>
                     <div className="grid gap-1.5">
                         <Label>Time (MM:SS)</Label>
                         <div className="flex items-center gap-1">
-                            <Input type="number" value={editableMinutes} onChange={(e) => setEditableMinutes(e.target.value)} className="w-16" disabled={isRunning} max={match.periodDurationMinutes} min={0}/>
+                            <Input type="number" value={editableMinutes} onChange={(e) => setEditableMinutes(e.target.value)} className="w-16" disabled={isRunning || match.status === 'break'} max={match.periodDurationMinutes} min={0}/>
                             <span className="font-bold">:</span>
-                            <Input type="number" value={editableSeconds} onChange={(e) => setEditableSeconds(e.target.value)} className="w-16" disabled={isRunning} max={59} min={0}/>
+                            <Input type="number" value={editableSeconds} onChange={(e) => setEditableSeconds(e.target.value)} className="w-16" disabled={isRunning || match.status === 'break'} max={59} min={0}/>
                         </div>
                     </div>
                     <div className="grid gap-1.5">
                         <Label htmlFor="period">Period</Label>
-                        <Input id="period" type="number" value={editablePeriod} onChange={(e) => setEditablePeriod(e.target.value)} className="w-16" disabled={isRunning} max={match.totalPeriods} min={1}/>
+                        <Input id="period" type="number" value={editablePeriod} onChange={(e) => setEditablePeriod(e.target.value)} className="w-16" disabled={isRunning || match.status === 'break'} max={match.totalPeriods} min={1}/>
                     </div>
-                    <Button onClick={handleTimeUpdate} disabled={isRunning}>Set</Button>
-                     <Button variant="destructive" onClick={handleEndPeriod} disabled={isRunning || match.status === 'finished'}>
+                    <Button onClick={handleTimeUpdate} disabled={isRunning || match.status === 'break'}>Set</Button>
+                     <Button variant="destructive" onClick={handleEndPeriod} disabled={isRunning || match.status === 'finished' || match.status === 'break'}>
                         <Square className="mr-2 h-4 w-4" /> {match.period >= match.totalPeriods ? 'End Match' : 'End Period'}
                     </Button>
                 </div>

@@ -38,14 +38,15 @@ export default function AdminDashboard() {
     upcoming: "bg-yellow-500 text-black",
     finished: "bg-green-500 text-white",
     paused: "bg-blue-500 text-white",
+    break: "bg-orange-500 text-white",
   };
 
   const handleRemoveMatch = async (id: string) => {
     await deleteMatch(id);
   };
 
-  const handleAddMatch = async (teamAId: string, teamBId: string, totalPeriods: number, periodDurationMinutes: number) => {
-    await addMatch(teamAId, teamBId, totalPeriods, periodDurationMinutes);
+  const handleAddMatch = async (teamAId: string, teamBId: string, totalPeriods: number, periodDurationMinutes: number, breakDurationMinutes: number) => {
+    await addMatch(teamAId, teamBId, totalPeriods, periodDurationMinutes, breakDurationMinutes);
   };
 
   return (

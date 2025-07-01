@@ -55,7 +55,7 @@ export type MatchEvent = GoalEvent | PenaltyEvent | SaveEvent;
 
 export interface Match {
   id: string;
-  status: 'upcoming' | 'live' | 'paused' | 'finished';
+  status: 'upcoming' | 'live' | 'paused' | 'break' | 'finished';
   teamA: Team;
   teamB: Team;
   scoreA: number;
@@ -64,6 +64,8 @@ export interface Match {
   time: string; // current match time
   totalPeriods: number;
   periodDurationMinutes: number;
+  breakDurationMinutes: number;
+  breakEndTime: number | null;
   events: MatchEvent[];
   rosterA: Player[];
   rosterB: Player[];

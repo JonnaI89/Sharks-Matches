@@ -25,7 +25,7 @@ interface CreateMatchDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   teams: Team[];
-  onAddMatch: (teamAId: string, teamBId: string, totalPeriods: number, periodDurationMinutes: number) => void;
+  onAddMatch: (teamAId: string, teamBId: string, totalPeriods: number, periodDurationMinutes: number, breakDurationMinutes: number) => void;
 }
 
 export function CreateMatchDialog({ open, onOpenChange, teams, onAddMatch }: CreateMatchDialogProps) {
@@ -33,6 +33,7 @@ export function CreateMatchDialog({ open, onOpenChange, teams, onAddMatch }: Cre
   const [teamBId, setTeamBId] = useState<string | undefined>();
   const [totalPeriods, setTotalPeriods] = useState<string>("3");
   const [periodDuration, setPeriodDuration] = useState<string>("20");
+  const [breakDuration, setBreakDuration] = useState<string>("15");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -42,6 +43,7 @@ export function CreateMatchDialog({ open, onOpenChange, teams, onAddMatch }: Cre
       setTeamBId(undefined);
       setTotalPeriods("3");
       setPeriodDuration("20");
+      setBreakDuration("15");
     }
   }, [open]);
 
@@ -49,6 +51,7 @@ export function CreateMatchDialog({ open, onOpenChange, teams, onAddMatch }: Cre
     setError(null);
     const periods = parseInt(totalPeriods, 10);
     const duration = parseInt(periodDuration, 10);
+    const breakDur = parseInt(breakDuration, 10);
 
     if (!teamAId || !teamBId) {
       setError("Please select both teams.");
@@ -66,8 +69,12 @@ export function CreateMatchDialog({ open, onOpenChange, teams, onAddMatch }: Cre
       setError("Period duration must be a positive number.");
       return;
     }
+    if (isNaN(breakDur) || breakDur < 0) {
+      setError("Break duration must be a positive number.");
+      return;
+    }
 
-    onAddMatch(teamAId, teamBId, periods, duration);
+    onAddMatch(teamAId, teamBId, periods, duration, breakDur);
     onOpenChange(false);
   };
 
@@ -131,6 +138,17 @@ export function CreateMatchDialog({ open, onOpenChange, teams, onAddMatch }: Cre
               onChange={(e) => setPeriodDuration(e.target.value)}
               className="col-span-3"
               min="1"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="breakDuration" className="text-right">Break (min)</Label>
+            <Input
+              id="breakDuration"
+              type="number"
+              value={breakDuration}
+              onChange={(e) => setBreakDuration(e.target.value)}
+              className="col-span-3"
+              min="0"
             />
           </div>
           {error && <p className="col-span-4 text-center text-sm text-destructive">{error}</p>}

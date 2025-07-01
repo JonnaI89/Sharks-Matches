@@ -11,7 +11,7 @@ interface AdminDataContextType {
     teams: Record<string, Team>;
     players: Player[];
     isDataLoaded: boolean;
-    addMatch: (teamAId: string, teamBId: string, totalPeriods: number, periodDurationMinutes: number) => Promise<void>;
+    addMatch: (teamAId: string, teamBId: string, totalPeriods: number, periodDurationMinutes: number, breakDurationMinutes: number) => Promise<void>;
     updateMatch: (match: Match) => Promise<void>;
     deleteMatch: (matchId: string) => Promise<void>;
     addTeam: (team: Omit<Team, 'id'>) => Promise<void>;
@@ -106,6 +106,7 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
 
     useEffect(() => {
         if (!isRawDataLoaded) {
+            setIsDataLoaded(false);
             return;
         }
 
@@ -137,11 +138,11 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
 
             const rosterA_withStats = players
                 .filter(p => p.teamId === teamA.id)
-                .map(p => ({ ...p, stats: { goals: 0, assists: 0, penalties: 0, saves: 0, goalsAgainst: 0 } }));
+                .map(p => ({ ...p, stats: { goals: 0, assists: 0, penalties: 0 } }));
             
             const rosterB_withStats = players
                 .filter(p => p.teamId === teamB.id)
-                .map(p => ({ ...p, stats: { goals: 0, assists: 0, penalties: 0, saves: 0, goalsAgainst: 0 } }));
+                .map(p => ({ ...p, stats: { goals: 0, assists: 0, penalties: 0 } }));
 
             hydratedEvents.forEach(event => {
                 const isTeamAEvent = event.teamId === teamA.id;
@@ -179,14 +180,14 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
 
     }, [rawMatches, teams, players, isRawDataLoaded]);
 
-    const addMatch = useCallback(async (teamAId: string, teamBId: string, totalPeriods: number, periodDurationMinutes: number) => {
+    const addMatch = useCallback(async (teamAId: string, teamBId: string, totalPeriods: number, periodDurationMinutes: number, breakDurationMinutes: number) => {
         const teamA = teams[teamAId];
         const teamB = teams[teamBId];
         if (!teamA || !teamB) return;
 
         const newMatchData: Omit<Match, 'id'> = {
             status: 'upcoming', teamA, teamB, scoreA: 0, scoreB: 0, period: 1,
-            time: '00:00', totalPeriods, periodDurationMinutes, events: [],
+            time: '00:00', totalPeriods, periodDurationMinutes, breakDurationMinutes, breakEndTime: null, events: [],
             rosterA: players.filter(p => p.teamId === teamAId),
             rosterB: players.filter(p => p.teamId === teamBId),
         };

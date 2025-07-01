@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import type { Match } from "@/lib/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +9,43 @@ interface ScoreboardProps {
 }
 
 export function Scoreboard({ match }: ScoreboardProps) {
+  const [breakTimeRemaining, setBreakTimeRemaining] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (match?.status !== 'break' || !match.breakEndTime) {
+      setBreakTimeRemaining(null);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const remaining = match.breakEndTime! - now;
+
+      if (remaining <= 0) {
+        setBreakTimeRemaining("00:00");
+        clearInterval(interval);
+      } else {
+        const minutes = Math.floor(remaining / 1000 / 60);
+        const seconds = Math.floor((remaining / 1000) % 60);
+        setBreakTimeRemaining(`${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`);
+      }
+    }, 1000);
+
+    // Set initial value
+    const now = Date.now();
+    const remaining = match.breakEndTime! - now;
+     if (remaining <= 0) {
+        setBreakTimeRemaining("00:00");
+     } else {
+        const minutes = Math.floor(remaining / 1000 / 60);
+        const seconds = Math.floor((remaining / 1000) % 60);
+        setBreakTimeRemaining(`${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`);
+     }
+
+    return () => clearInterval(interval);
+  }, [match?.status, match?.breakEndTime]);
+
+
   if (!match) {
     return (
       <Card className="shadow-lg">
@@ -22,6 +60,18 @@ export function Scoreboard({ match }: ScoreboardProps) {
     );
   }
   
+  const getBadgeText = () => {
+    switch (match.status) {
+      case 'live':
+      case 'paused':
+        return `P${match.period}`;
+      case 'break':
+        return 'BREAK';
+      default:
+        return match.status.toUpperCase();
+    }
+  };
+
   return (
     <Card className="shadow-lg">
       <CardContent className="p-4 md:p-6">
@@ -35,9 +85,20 @@ export function Scoreboard({ match }: ScoreboardProps) {
           {/* Middle Info */}
           <div className="flex flex-col items-center gap-y-1 pt-1">
             <Badge variant="secondary" className="text-xs md:text-sm">
-                {match.status === 'live' ? `P${match.period}` : match.status.toUpperCase()}
+                {getBadgeText()}
             </Badge>
-            <span className="mt-1 font-mono text-lg font-bold md:text-2xl">{match.time}</span>
+            
+            {match.status === 'break' ? (
+                <span className="mt-1 font-mono text-lg font-bold md:text-2xl text-accent">
+                    {breakTimeRemaining || '00:00'}
+                </span>
+            ) : (
+                <span className="mt-1 font-mono text-lg font-bold md:text-2xl">{match.time}</span>
+            )}
+
+            {match.status === 'break' && (
+              <span className="text-xs text-muted-foreground">Until P{match.period}</span>
+            )}
           </div>
 
           {/* Team B */}

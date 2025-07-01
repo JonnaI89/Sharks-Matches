@@ -38,6 +38,20 @@ export function MatchCard({ match }: MatchCardProps) {
     upcoming: "bg-yellow-500 text-black",
     finished: "bg-green-500 text-white",
     paused: "bg-blue-500 text-white",
+    break: "bg-orange-500 text-white",
+  };
+
+  const getCardTitle = () => {
+    if (match.status === 'break') {
+      return `Break until P${match.period}`;
+    }
+    if (match.status === 'finished') {
+      return 'Finished';
+    }
+    if (match.status === 'upcoming') {
+        return 'Upcoming';
+    }
+    return `Period ${match.period} - ${match.time}`;
   };
 
   return (
@@ -46,7 +60,7 @@ export function MatchCard({ match }: MatchCardProps) {
         <CardHeader className="p-4 bg-muted/50">
           <div className="flex justify-between items-center">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Period {match.period} - {match.time}
+              {getCardTitle()}
             </CardTitle>
             <Badge className={cn("text-xs font-bold uppercase", statusColors[match.status])}>
               {match.status}
