@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import type { Match, PenaltyEvent, GoalEvent } from "@/lib/types";
+import type { Match } from "@/lib/types";
 import { Scoreboard } from "@/components/scoreboard";
 import { ActivePenalties } from "@/components/active-penalties";
 
@@ -18,61 +18,43 @@ const secondsToTime = (totalSeconds: number) => {
 };
 
 export function LiveMatchWrapper({ match: matchProp }: { match: Match }) {
-    // We use the prop to initialize state, but also to receive updates (e.g. goals, penalties from admin)
     const [liveMatch, setLiveMatch] = useState<Match>(matchProp);
 
-    // This effect syncs external changes (from props) with the internal state,
-    // preserving the component's own live timer.
+    // Effect 1: Sync with the database source of truth (props)
+    // This is crucial. Whenever the database changes (new prop), we reset our local state.
+    // This ensures goals, penalties, and admin clock adjustments are always reflected.
     useEffect(() => {
-        setLiveMatch(currentLiveMatch => ({
-            ...matchProp,
-            // Only preserve the running time if the component has a time state already.
-            // Otherwise, use the time from the prop. This handles initial render correctly.
-            time: currentLiveMatch ? currentLiveMatch.time : matchProp.time, 
-        }));
+        setLiveMatch(matchProp);
     }, [matchProp]);
     
-    // This effect runs the clock
+    // Effect 2: Run the local clock for a smooth visual effect
+    // This effect ONLY runs when the match is live.
     useEffect(() => {
         if (liveMatch.status !== 'live') {
-            // Ensure the displayed time is the official time when clock is not running
-            if (liveMatch.time !== matchProp.time) {
-                setLiveMatch(prev => ({...prev, time: matchProp.time}));
-            }
-            return;
+            return; // Do nothing if the match is not live
         }
 
         const interval = setInterval(() => {
+            // We only update the time client-side. All other data comes from props.
             setLiveMatch(prevMatch => {
-                if (prevMatch.status !== 'live') return prevMatch;
-                
-                const newMatch = JSON.parse(JSON.stringify(prevMatch));
+                const newMatch = { ...prevMatch }; // shallow copy
                 const periodDurationInSeconds = newMatch.periodDurationMinutes * 60;
-
                 const currentTimeInSeconds = timeToSeconds(newMatch.time);
-                if (currentTimeInSeconds >= periodDurationInSeconds) { // Stop at period end
-                    return prevMatch; // Stop the timer
+
+                if (currentTimeInSeconds >= periodDurationInSeconds) {
+                    // The server will eventually change the status, but we can stop the client timer.
+                    clearInterval(interval);
+                    return prevMatch;
                 }
 
                 newMatch.time = secondsToTime(currentTimeInSeconds + 1);
-
-                newMatch.events = newMatch.events.map((event: PenaltyEvent | GoalEvent) => {
-                    if (event.type === 'penalty' && event.status === 'active' && event.expiresAt) {
-                        const expirationTimeInSeconds = (event.expiresAt.period - 1) * periodDurationInSeconds + timeToSeconds(event.expiresAt.time);
-                        const gameTimeInSeconds = (newMatch.period - 1) * periodDurationInSeconds + timeToSeconds(newMatch.time);
-                        if (gameTimeInSeconds >= expirationTimeInSeconds) {
-                            return { ...event, status: 'expired' };
-                        }
-                    }
-                    return event;
-                });
-
                 return newMatch;
             });
         }, 1000);
 
         return () => clearInterval(interval);
-    }, [liveMatch.status, liveMatch.time, matchProp.time]); // Rerun if status or official time changes
+    // Re-run the effect if the status changes OR if the time is changed externally (by the sync effect).
+    }, [liveMatch.status, liveMatch.time, liveMatch.periodDurationMinutes]); 
 
     return (
         <div className="space-y-6">

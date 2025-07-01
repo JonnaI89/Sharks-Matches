@@ -1,9 +1,9 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import type { Match, Player, Team } from '@/lib/types';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, doc, setDoc, addDoc, deleteDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, addDoc, deleteDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
 interface AdminDataContextType {
@@ -62,76 +62,89 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
     const [players, setPlayers] = useState<Player[]>([]);
     const [isDataLoaded, setIsDataLoaded] = useState(false);
 
-    const fetchData = useCallback(async () => {
-        setIsDataLoaded(false);
-        try {
-            // Fetch Teams
-            const teamsSnapshot = await getDocs(collection(db, "teams"));
+    useEffect(() => {
+        // This effect sets up real-time listeners for all our data.
+        
+        const handleError = (error: Error, type: string) => {
+            console.error(`Failed to fetch ${type} from Firestore`, error);
+            toast({
+                title: `Error Loading ${type}`,
+                description: `Could not connect to the database for ${type}.`,
+                variant: "destructive",
+            });
+        };
+
+        const unsubTeams = onSnapshot(collection(db, "teams"), (snapshot) => {
             const teamsData: Record<string, Team> = {};
-            teamsSnapshot.forEach(doc => {
+            snapshot.forEach(doc => {
                 teamsData[doc.id] = { id: doc.id, ...doc.data() } as Team;
             });
             setTeams(teamsData);
+        }, (err) => handleError(err, "teams"));
 
-            // Fetch Players
-            const playersSnapshot = await getDocs(collection(db, "players"));
-            const playersData = playersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Player));
+        const unsubPlayers = onSnapshot(collection(db, "players"), (snapshot) => {
+            const playersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Player));
             setPlayers(playersData);
-            
-            // Fetch Matches and hydrate team/roster data
-            const matchesSnapshot = await getDocs(collection(db, "matches"));
-            const matchesData = matchesSnapshot.docs.map(doc => {
-                const data = doc.data();
-                const teamA = teamsData[data.teamA.id];
-                const teamB = teamsData[data.teamB.id];
-                
+        }, (err) => handleError(err, "players"));
+
+        const unsubMatches = onSnapshot(collection(db, "matches"), (snapshot) => {
+            // We get the raw match data here and will hydrate it in another effect
+            // when all data sources are ready.
+             setMatches(snapshot.docs.map(doc => ({
+                 id: doc.id,
+                 ...doc.data()
+             } as unknown as Match))); // We cast here, but will properly hydrate below
+        }, (err) => handleError(err, "matches"));
+
+        return () => {
+            unsubTeams();
+            unsubPlayers();
+            unsubMatches();
+        };
+    }, [toast]);
+
+    useEffect(() => {
+        // This effect re-hydrates the matches whenever the raw matches, teams, or players change.
+        if (Object.keys(teams).length > 0 || matches.length > 0 || players.length > 0) {
+            const hydratedMatches = matches.map(match => {
+                const teamA = teams[match.teamA.id];
+                const teamB = teams[match.teamB.id];
+
                 if (!teamA || !teamB) return null;
 
-                // We need to re-hydrate the nested objects from our fetched data
                 const hydratedMatch: Match = {
-                    id: doc.id,
-                    ...data,
-                    teamA: teamA,
-                    teamB: teamB,
-                    rosterA: playersData.filter(p => p.teamId === data.teamA.id),
-                    rosterB: playersData.filter(p => p.teamId === data.teamB.id),
-                    events: data.events.map((event: any) => {
+                    ...match,
+                    teamA,
+                    teamB,
+                    rosterA: players.filter(p => p.teamId === teamA.id),
+                    rosterB: players.filter(p => p.teamId === teamB.id),
+                    events: (match.events || []).map((event: any) => {
                         if (event.type === 'goal') {
                             return {
                                 ...event,
-                                scorer: playersData.find(p => p.id === event.scorer.id),
-                                assist: event.assist ? playersData.find(p => p.id === event.assist.id) : undefined,
+                                scorer: players.find(p => p.id === event.scorer.id),
+                                assist: event.assist ? players.find(p => p.id === event.assist.id) : undefined,
                             };
                         }
                         if (event.type === 'penalty') {
                              return {
                                 ...event,
-                                player: playersData.find(p => p.id === event.player.id),
+                                player: players.find(p => p.id === event.player.id),
                             };
                         }
                         return event;
-                    })
+                    }).filter(Boolean)
                 };
                 return hydratedMatch;
             }).filter((m): m is Match => m !== null);
-            
-            setMatches(matchesData);
+            setMatches(hydratedMatches);
 
-        } catch (error) {
-            console.error("Failed to fetch data from Firestore", error);
-            toast({
-                title: "Error Loading Data",
-                description: "Could not connect to the database. Check connection and Firebase setup.",
-                variant: "destructive",
-            });
-        } finally {
-            setIsDataLoaded(true);
+            if(!isDataLoaded) {
+                setIsDataLoaded(true);
+            }
         }
-    }, [toast]);
 
-    useEffect(() => {
-        fetchData();
-    }, [fetchData]);
+    }, [teams, players, matches, isDataLoaded]);
 
     const addMatch = async (teamAId: string, teamBId: string, totalPeriods: number, periodDurationMinutes: number) => {
         const teamA = teams[teamAId];
@@ -147,8 +160,7 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
         
         try {
             const sanitizedMatch = sanitizeMatchForFirebase(newMatchData);
-            const docRef = await addDoc(collection(db, "matches"), sanitizedMatch);
-            setMatches(prev => [...prev, {...newMatchData, id: docRef.id}]);
+            await addDoc(collection(db, "matches"), sanitizedMatch);
         } catch (error) {
             console.error("Error adding match: ", error);
         }
@@ -159,7 +171,6 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
             const sanitizedMatch = sanitizeMatchForFirebase(matchToUpdate);
             const { id, ...matchData } = sanitizedMatch;
             await setDoc(doc(db, "matches", matchToUpdate.id), matchData);
-            setMatches(prev => prev.map(m => m.id === matchToUpdate.id ? matchToUpdate : m));
         } catch (error) {
             console.error("Error updating match: ", error);
         }
@@ -168,7 +179,6 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
     const deleteMatch = async (matchId: string) => {
         try {
             await deleteDoc(doc(db, "matches", matchId));
-            setMatches(prev => prev.filter(match => match.id !== matchId));
         } catch (error) {
             console.error("Error deleting match: ", error);
         }
@@ -176,9 +186,7 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
     
     const addTeam = async (newTeam: Omit<Team, 'id'>) => {
         try {
-            const docRef = await addDoc(collection(db, "teams"), newTeam);
-            const teamToAdd: Team = { ...newTeam, id: docRef.id };
-            setTeams(prev => ({ ...prev, [docRef.id]: teamToAdd }));
+            await addDoc(collection(db, "teams"), newTeam);
         } catch (error) {
             console.error("Error adding team: ", error);
         }
@@ -188,16 +196,6 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
         try {
             const teamDocRef = doc(db, "teams", teamId);
             await setDoc(teamDocRef, teamData);
-            const updatedTeam: Team = { id: teamId, ...teamData };
-
-            setTeams(prev => ({ ...prev, [teamId]: updatedTeam }));
-
-            setMatches(prevMatches => prevMatches.map(match => {
-                const newMatch = {...match};
-                if (match.teamA.id === teamId) newMatch.teamA = updatedTeam;
-                if (match.teamB.id === teamId) newMatch.teamB = updatedTeam;
-                return newMatch;
-            }));
         } catch (error) {
             console.error("Error updating team: ", error);
             toast({
@@ -219,11 +217,6 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
         }
         try {
             await deleteDoc(doc(db, "teams", teamId));
-            setTeams(prev => {
-                const newTeams = { ...prev };
-                delete newTeams[teamId];
-                return newTeams;
-            });
         } catch (error) {
             console.error("Error deleting team: ", error);
         }
@@ -236,8 +229,7 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
             stats: { goals: 0, assists: 0, penalties: 0 },
         };
         try {
-            const docRef = await addDoc(collection(db, "players"), playerToAdd);
-            setPlayers(prev => [ ...prev, { ...playerToAdd, id: docRef.id } ]);
+            await addDoc(collection(db, "players"), playerToAdd);
         } catch(e) {
             console.error("Error adding player: ", e);
         }
@@ -246,7 +238,6 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
     const deletePlayer = async (playerId: string) => {
         try {
             await deleteDoc(doc(db, "players", playerId));
-            setPlayers(prev => prev.filter(p => p.id !== playerId));
         } catch(e) {
             console.error("Error deleting player: ", e);
         }
