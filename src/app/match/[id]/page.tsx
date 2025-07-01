@@ -81,7 +81,7 @@ export default function MatchPage() {
                 <CardTitle>Event Timeline</CardTitle>
               </CardHeader>
               <CardContent>
-                <EventTimeline events={match.events} />
+                <EventTimeline match={match} />
               </CardContent>
             </Card>
           </TabsContent>

@@ -1,15 +1,15 @@
 "use client";
 
-import type { MatchEvent } from "@/lib/types";
-import { useAdminData } from "@/context/admin-data-context";
-import { Goal, Square } from "lucide-react";
+import type { Match } from "@/lib/types";
+import { Goal, Shield } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface EventTimelineProps {
-  events: MatchEvent[];
+  match: Match;
 }
 
-export function EventTimeline({ events }: EventTimelineProps) {
-  const { teams } = useAdminData();
+export function EventTimeline({ match }: EventTimelineProps) {
+  const { events, teamA, teamB } = match;
 
   if (events.length === 0) {
     return <p className="text-muted-foreground text-center py-8">No events have occurred yet.</p>;
@@ -23,39 +23,60 @@ export function EventTimeline({ events }: EventTimelineProps) {
   });
 
   return (
-    <div className="space-y-8">
-      {sortedEvents.map((event) => (
-        <div key={event.id} className="flex items-center gap-4">
-          <div className="flex flex-col items-center">
-            <span className="font-mono text-sm text-muted-foreground">P{event.period}</span>
-            <span className="font-mono text-sm font-bold">{event.time}</span>
-          </div>
-          <div className="flex-shrink-0">
-            {event.type === 'goal' ? (
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 dark:bg-green-900">
-                <Goal className="h-5 w-5 text-green-600 dark:text-green-400" />
-              </span>
-            ) : (
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-yellow-100 dark:bg-yellow-900">
-                <Square className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
-              </span>
+    <div className="space-y-6">
+      {sortedEvents.map((event) => {
+        const isHomeTeam = event.teamId === teamA.id;
+        const team = isHomeTeam ? teamA : teamB;
+        const Icon = event.type === 'goal' ? Goal : Shield;
+
+        return (
+          <div
+            key={event.id}
+            className={cn(
+              "flex w-full items-center gap-4",
+              !isHomeTeam && "flex-row-reverse" // This creates the zigzag effect
             )}
+          >
+            {/* Icon with team-specific color */}
+            <div className="flex-shrink-0">
+              <span
+                className={cn(
+                  "flex h-10 w-10 items-center justify-center rounded-full",
+                  isHomeTeam ? "bg-primary/10" : "bg-muted" // Blueish for home, gray for away
+                )}
+              >
+                <Icon
+                  className={cn(
+                    "h-5 w-5",
+                    isHomeTeam ? "text-primary" : "text-foreground" // Blue icon for home, black/white for away
+                  )}
+                />
+              </span>
+            </div>
+
+            {/* Event Details */}
+            <div className={cn("flex-grow", !isHomeTeam && "text-right")}>
+              <p className="font-semibold">{team.name}</p>
+              {event.type === 'goal' ? (
+                <p className="text-sm text-muted-foreground">
+                  Goal by {event.scorer.name}
+                  {event.assist ? `, assist by ${event.assist.name}` : ''}
+                </p>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  {event.duration} min penalty for {event.player.name}
+                </p>
+              )}
+            </div>
+
+            {/* Timestamp */}
+            <div className="flex-shrink-0 text-center w-20">
+              <span className="font-mono text-xs text-muted-foreground">P{event.period}</span>
+              <span className="block font-mono text-sm font-bold">{event.time}</span>
+            </div>
           </div>
-          <div className="flex-grow">
-            <p className="font-semibold">{teams[event.teamId]?.name || 'Unknown Team'}</p>
-            {event.type === 'goal' ? (
-              <p className="text-sm text-muted-foreground">
-                Goal by {event.scorer.name}
-                {event.assist ? `, assist by ${event.assist.name}` : ''}
-              </p>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                {event.duration} min penalty for {event.player.name}
-              </p>
-            )}
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
