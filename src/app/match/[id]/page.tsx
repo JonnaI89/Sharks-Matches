@@ -68,25 +68,23 @@ export default function MatchPage() {
       <main className="flex-1 container mx-auto p-4 md:p-8 space-y-8">
         <LiveMatchWrapper match={match} />
         
-        <Tabs defaultValue="events">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="events">Events</TabsTrigger>
+        <Card>
+          <CardHeader>
+            <CardTitle>Event Timeline</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <EventTimeline match={match} />
+          </CardContent>
+        </Card>
+        
+        <Tabs defaultValue="stats" className="pt-4">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="stats">Stats</TabsTrigger>
             <TabsTrigger value="analysis">AI Analysis</TabsTrigger>
           </TabsList>
           
-          <TabsContent value="events">
-            <Card>
-              <CardHeader>
-                <CardTitle>Event Timeline</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <EventTimeline match={match} />
-              </CardContent>
-            </Card>
-          </TabsContent>
           <TabsContent value="stats">
-            <div className="grid md:grid-cols-2 gap-8">
+            <div className="grid md:grid-cols-2 gap-8 pt-4">
               <Card>
                 <CardHeader>
                   <CardTitle>{match.teamA.name}</CardTitle>
