@@ -11,9 +11,11 @@ import {
   SidebarInset,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, Settings, Users } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { LayoutDashboard, Settings, Users, LogOut } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { AuthGuard } from "@/components/auth-guard";
+import { useAuth } from "@/context/auth-context";
 
 export default function AdminLayout({
   children,
@@ -21,8 +23,16 @@ export default function AdminLayout({
   children: React.ReactNode;
 }>) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { signOut } = useAuth();
+
+  const handleLogout = async () => {
+    await signOut();
+    router.push('/login');
+  }
 
   return (
+    <AuthGuard>
       <SidebarProvider>
         <div className="flex min-h-screen">
           <Sidebar>
@@ -75,9 +85,15 @@ export default function AdminLayout({
             <header className="flex items-center justify-between p-4 border-b bg-card">
               <SidebarTrigger className="md:hidden"/>
               <h1 className="text-2xl font-bold">Admin Panel</h1>
-              <Button asChild>
-                <Link href="/">View Public Site</Link>
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button asChild>
+                  <Link href="/">View Public Site</Link>
+                </Button>
+                <Button variant="outline" onClick={handleLogout}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logg ut
+                </Button>
+              </div>
             </header>
             <main className="flex-1 p-4 md:p-8 bg-background">
               {children}
@@ -85,5 +101,6 @@ export default function AdminLayout({
           </SidebarInset>
         </div>
       </SidebarProvider>
+    </AuthGuard>
   );
 }
