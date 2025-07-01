@@ -43,8 +43,6 @@ export default function StatsPage() {
             }
         });
 
-        const goaliesInMatch = matchPlayers.filter(p => p.isGoalie);
-
         for (const event of match.events) {
             let playerStats: CareerStats | undefined;
 
@@ -59,10 +57,8 @@ export default function StatsPage() {
                         if(assistStats) assistStats.assists++;
                     }
 
-                    const concedingTeamId = goalEvent.teamId === match.teamA.id ? match.teamB.id : match.teamA.id;
-                    const concedingGoalie = goaliesInMatch.find(p => p.teamId === concedingTeamId);
-                    if(concedingGoalie) {
-                        const goalieStats = statsMap.get(concedingGoalie.id);
+                    if (goalEvent.concedingGoalieId) {
+                        const goalieStats = statsMap.get(goalEvent.concedingGoalieId);
                         if(goalieStats) goalieStats.goalsAgainst++;
                     }
                     break;

@@ -123,15 +123,18 @@ export default function AdminMatchPage() {
     let newMatch = JSON.parse(JSON.stringify(match));
     newMatch.time = displayTime;
 
+    const concedingTeamId = teamId === newMatch.teamA.id ? match.teamB.id : match.teamA.id;
+    const concedingGoalieId = concedingTeamId === match.teamA.id ? match.activeGoalieAId : match.activeGoalieBId;
+
     const newGoalEvent: GoalEvent = {
         id: `e${newMatch.events.length + 1}`, type: 'goal', teamId, scorer, assist, time: newMatch.time, period: newMatch.period,
+        concedingGoalieId: concedingGoalieId || undefined,
     };
     newMatch.events.push(newGoalEvent);
 
     if (teamId === newMatch.teamA.id) newMatch.scoreA += 1;
     else newMatch.scoreB += 1;
 
-    const concedingTeamId = teamId === newMatch.teamA.id ? newMatch.teamB.id : newMatch.teamA.id;
     const activePenalties = newMatch.events.filter((e: MatchEvent): e is PenaltyEvent => e.type === 'penalty' && e.teamId === concedingTeamId && e.status === 'active');
     if (activePenalties.length > 0) {
       activePenalties.sort((a, b) => a.period !== b.period ? a.period - b.period : a.time.localeCompare(b.time));

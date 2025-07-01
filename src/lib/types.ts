@@ -25,6 +25,7 @@ export interface GoalEvent {
   assist?: Player;
   time: string; // e.g., "15:34"
   period: number;
+  concedingGoalieId?: string;
 }
 
 export interface PenaltyEvent {
