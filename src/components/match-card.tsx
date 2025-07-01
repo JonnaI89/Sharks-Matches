@@ -33,10 +33,11 @@ interface MatchCardProps {
 }
 
 export function MatchCard({ match }: MatchCardProps) {
-  const statusColors = {
+  const statusColors: Record<string, string> = {
     live: "bg-red-500 text-white",
     upcoming: "bg-yellow-500 text-black",
     finished: "bg-green-500 text-white",
+    paused: "bg-blue-500 text-white",
   };
 
   return (

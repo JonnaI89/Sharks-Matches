@@ -106,20 +106,27 @@ export default function AdminMatchPage() {
   }, [isRunning, match]);
 
   const handleToggleClock = async () => {
-      if (!match) return;
-      const newIsRunning = !isRunning;
-      
-      // When pausing, we persist the current visual time to DB.
-      // When starting, we just set the status to 'live'. DB time is the correct start time.
-      const updatedMatch = {
-          ...match,
-          status: newIsRunning ? 'live' : (match.status === 'live' ? 'live' : 'upcoming'),
-          time: !newIsRunning ? displayTime : match.time,
-      };
+    if (!match || match.status === 'finished') return;
 
-      // Update the database. This will trigger onSnapshot and update the `match` prop,
-      // which in turn updates our local state via Effect 1.
-      await updateMatch(updatedMatch);
+    let newStatus: Match['status'];
+    let newTime = match.time;
+
+    if (match.status === 'live') {
+      // Pausing the clock
+      newStatus = 'paused';
+      newTime = displayTime; // Persist current visual time
+    } else {
+      // Starting the clock (from 'upcoming' or 'paused')
+      newStatus = 'live';
+    }
+
+    const updatedMatch = {
+        ...match,
+        status: newStatus,
+        time: newTime,
+    };
+
+    await updateMatch(updatedMatch);
   };
   
   if (!isDataLoaded) {

@@ -46,7 +46,7 @@ export type MatchEvent = GoalEvent | PenaltyEvent;
 
 export interface Match {
   id: string;
-  status: 'upcoming' | 'live' | 'finished';
+  status: 'upcoming' | 'live' | 'paused' | 'finished';
   teamA: Team;
   teamB: Team;
   scoreA: number;
