@@ -4,9 +4,7 @@ import { Header } from "@/components/header";
 import { MatchCard } from "@/components/match-card";
 import { useAdminData } from "@/context/admin-data-context";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
-import { PlusCircle, CalendarX2 } from "lucide-react";
+import { CalendarX2 } from "lucide-react";
 
 function MatchList() {
   const { matches, isDataLoaded } = useAdminData();
@@ -27,15 +25,10 @@ function MatchList() {
         <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
           <CalendarX2 className="h-8 w-8 text-primary" />
         </div>
-        <h2 className="text-2xl font-semibold">Ingen kamper funnet</h2>
-        <p className="mt-2 mb-4 text-muted-foreground">
-          Kom i gang ved å opprette lag og kamper i adminpanelet.
+        <h2 className="text-2xl font-semibold">Ingen kamper tilgjengelig</h2>
+        <p className="mt-2 text-muted-foreground">
+          Kamper vil vises her så snart de er planlagt.
         </p>
-        <Button asChild>
-          <Link href="/admin">
-            <PlusCircle className="mr-2 h-4 w-4" /> Gå til Admin
-          </Link>
-        </Button>
       </div>
     );
   }
