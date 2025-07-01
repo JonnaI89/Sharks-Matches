@@ -39,7 +39,8 @@ function StatsTable({ players }: { players: Player[] }) {
   );
 }
 
-export default function MatchPage({ params }: { params: { id: string } }) {
+export default function MatchPage() {
+  const params = useParams<{ id: string }>();
   const { matches, isDataLoaded } = useAdminData();
   
   if (!isDataLoaded) {
