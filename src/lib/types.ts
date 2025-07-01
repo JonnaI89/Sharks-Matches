@@ -14,6 +14,8 @@ export interface Player {
     goals: number;
     assists: number;
     penalties: number;
+    saves?: number;
+    goalsAgainst?: number;
   };
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
-import type { Match, Player, Team, MatchEvent, SaveEvent } from '@/lib/types';
+import type { Match, Player, Team, MatchEvent, SaveEvent, GoalEvent } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, doc, setDoc, addDoc, deleteDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -138,29 +138,46 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
 
             const rosterA_withStats = players
                 .filter(p => p.teamId === teamA.id)
-                .map(p => ({ ...p, stats: { goals: 0, assists: 0, penalties: 0 } }));
+                .map(p => ({ ...p, stats: { goals: 0, assists: 0, penalties: 0, saves: 0, goalsAgainst: 0 } }));
             
             const rosterB_withStats = players
                 .filter(p => p.teamId === teamB.id)
-                .map(p => ({ ...p, stats: { goals: 0, assists: 0, penalties: 0 } }));
+                .map(p => ({ ...p, stats: { goals: 0, assists: 0, penalties: 0, saves: 0, goalsAgainst: 0 } }));
 
             hydratedEvents.forEach(event => {
                 const isTeamAEvent = event.teamId === teamA.id;
                 
                 if (event.type === 'goal') {
+                    const goalEvent = event as GoalEvent;
                     const scorerRoster = isTeamAEvent ? rosterA_withStats : rosterB_withStats;
-                    const scorer = scorerRoster.find(p => p.id === event.scorer.id);
+                    const scorer = scorerRoster.find(p => p.id === goalEvent.scorer.id);
                     if (scorer) scorer.stats.goals += 1;
                     
-                    if (event.assist) {
+                    if (goalEvent.assist) {
                         const assistRoster = isTeamAEvent ? rosterA_withStats : rosterB_withStats;
-                        const assister = assistRoster.find(p => p.id === event.assist.id);
+                        const assister = assistRoster.find(p => p.id === goalEvent.assist.id);
                         if (assister) assister.stats.assists += 1;
                     }
+
+                    if (goalEvent.concedingGoalieId) {
+                        const concedingRoster = isTeamAEvent ? rosterB_withStats : rosterA_withStats;
+                        const goalie = concedingRoster.find(p => p.id === goalEvent.concedingGoalieId);
+                        if(goalie) {
+                            goalie.stats.goalsAgainst = (goalie.stats.goalsAgainst || 0) + 1;
+                        }
+                    }
+
                 } else if (event.type === 'penalty') {
                     const penaltyRoster = isTeamAEvent ? rosterA_withStats : rosterB_withStats;
                     const player = penaltyRoster.find(p => p.id === event.player.id);
                     if (player) player.stats.penalties += event.duration;
+                } else if (event.type === 'save') {
+                    const saveEvent = event as SaveEvent;
+                    const savingRoster = isTeamAEvent ? rosterA_withStats : rosterB_withStats;
+                    const goalie = savingRoster.find(p => p.id === saveEvent.goalie.id);
+                    if (goalie) {
+                        goalie.stats.saves = (goalie.stats.saves || 0) + 1;
+                    }
                 }
             });
 
