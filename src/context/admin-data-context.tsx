@@ -67,7 +67,8 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
         players: true,
         matches: true,
     });
-    const isDataLoaded = !loadingStatus.teams && !loadingStatus.players && !loadingStatus.matches;
+    const [isDataLoaded, setIsDataLoaded] = useState(false);
+    const areRawSourcesLoaded = !loadingStatus.teams && !loadingStatus.players && !loadingStatus.matches;
 
     useEffect(() => {
         const handleError = (error: Error, type: string) => {
@@ -77,7 +78,6 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
                 description: `Could not connect to the database for ${type}.`,
                 variant: "destructive",
             });
-            // Mark as loaded even on error to not block UI forever
             setLoadingStatus(s => ({ ...s, [type.toLowerCase()]: false }));
         };
 
@@ -109,8 +109,8 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
     }, [toast]);
 
     useEffect(() => {
-        if (!isDataLoaded) {
-            return; // Don't hydrate until all data sources have reported back
+        if (!areRawSourcesLoaded) {
+            return;
         }
 
         const hydratedMatches = rawMatches.map(match => {
@@ -144,8 +144,11 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
         }).filter((m): m is Match => m !== null);
         
         setMatches(hydratedMatches);
+        if (!isDataLoaded) {
+            setIsDataLoaded(true);
+        }
 
-    }, [rawMatches, teams, players, isDataLoaded]);
+    }, [rawMatches, teams, players, areRawSourcesLoaded, isDataLoaded]);
 
     const addMatch = useCallback(async (teamAId: string, teamBId: string, totalPeriods: number, periodDurationMinutes: number) => {
         const teamA = teams[teamAId];
