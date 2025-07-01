@@ -14,14 +14,14 @@ function TeamLogo({ logo, name }: TeamLogoProps) {
 
   if (isUrl) {
     return (
-      <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center overflow-hidden" data-ai-hint="team logo">
+      <div className="h-14 w-14 md:h-16 md:w-16 rounded-full bg-muted flex items-center justify-center overflow-hidden" data-ai-hint="team logo">
         <img src={logo} alt={`${name} logo`} className="h-full w-full object-cover" />
       </div>
     );
   }
 
   return (
-    <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center text-2xl font-bold text-muted-foreground" data-ai-hint="team logo">
+    <div className="h-14 w-14 md:h-16 md:w-16 rounded-full bg-muted flex items-center justify-center text-2xl font-bold text-muted-foreground" data-ai-hint="team logo">
       {logo}
       <span className="sr-only">{name} logo</span>
     </div>
@@ -53,16 +53,18 @@ export function MatchCard({ match }: MatchCardProps) {
           </div>
         </CardHeader>
         <CardContent className="p-6">
-          <div className="flex justify-around items-center">
-            <div className="flex flex-col items-center gap-2 text-center">
+          <div className="grid grid-cols-[2fr_auto_2fr] items-start justify-center gap-x-3 text-center">
+            <div className="flex flex-col items-center gap-2">
               <TeamLogo logo={match.teamA.logo} name={match.teamA.name} />
-              <p className="font-semibold text-sm h-10">{match.teamA.name}</p>
+              <p className="font-semibold text-sm h-10 flex items-center justify-center">{match.teamA.name}</p>
               <p className="text-4xl font-bold">{match.scoreA}</p>
             </div>
-            <div className="text-2xl font-light text-muted-foreground">vs</div>
-            <div className="flex flex-col items-center gap-2 text-center">
+            
+            <div className="pt-5 text-2xl font-light text-muted-foreground">vs</div>
+            
+            <div className="flex flex-col items-center gap-2">
               <TeamLogo logo={match.teamB.logo} name={match.teamB.name} />
-              <p className="font-semibold text-sm h-10">{match.teamB.name}</p>
+              <p className="font-semibold text-sm h-10 flex items-center justify-center">{match.teamB.name}</p>
               <p className="text-4xl font-bold">{match.scoreB}</p>
             </div>
           </div>
