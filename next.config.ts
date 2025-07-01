@@ -11,16 +11,14 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       {
-        protocol: 'https',
+        protocol: 'https,',
         hostname: 'placehold.co',
         port: '',
         pathname: '/**',
       },
     ],
   },
-  experimental: {
-    allowedDevOrigins: ["*.cloudworkstations.dev"],
-  },
+  allowedDevOrigins: ["*.cloudworkstations.dev"],
 };
 
 export default nextConfig;
