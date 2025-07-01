@@ -119,26 +119,56 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
 
             if (!teamA || !teamB) return null;
 
+            const hydratedEvents = (match.events || []).map((event: any) => {
+                if (event.type === 'goal') {
+                    const scorer = players.find(p => p.id === event.scorer?.id);
+                    if (!scorer) return null;
+                    const assist = event.assist?.id ? players.find(p => p.id === event.assist.id) : undefined;
+                    return { ...event, scorer, assist: assist || undefined };
+                }
+                if (event.type === 'penalty') {
+                     const player = players.find(p => p.id === event.player?.id);
+                     if (!player) return null;
+                     return { ...event, player };
+                }
+                return event;
+            }).filter((e): e is MatchEvent => e !== null);
+
+            const rosterA_withStats = players
+                .filter(p => p.teamId === teamA.id)
+                .map(p => ({ ...p, stats: { goals: 0, assists: 0, penalties: 0 } }));
+            
+            const rosterB_withStats = players
+                .filter(p => p.teamId === teamB.id)
+                .map(p => ({ ...p, stats: { goals: 0, assists: 0, penalties: 0 } }));
+
+            hydratedEvents.forEach(event => {
+                const isTeamAEvent = event.teamId === teamA.id;
+                
+                if (event.type === 'goal') {
+                    const scorerRoster = isTeamAEvent ? rosterA_withStats : rosterB_withStats;
+                    const scorer = scorerRoster.find(p => p.id === event.scorer.id);
+                    if (scorer) scorer.stats.goals += 1;
+                    
+                    if (event.assist) {
+                        const assistRoster = isTeamAEvent ? rosterA_withStats : rosterB_withStats;
+                        const assister = assistRoster.find(p => p.id === event.assist.id);
+                        if (assister) assister.stats.assists += 1;
+                    }
+                } else if (event.type === 'penalty') {
+                    const penaltyRoster = isTeamAEvent ? rosterA_withStats : rosterB_withStats;
+                    const player = penaltyRoster.find(p => p.id === event.player.id);
+                    if (player) player.stats.penalties += event.duration;
+                }
+            });
+
             const hydratedMatch: Match = {
                 ...match,
                 teamA,
                 teamB,
-                rosterA: players.filter(p => p.teamId === teamA.id),
-                rosterB: players.filter(p => p.teamId === teamB.id),
-                events: (match.events || []).map((event: any) => {
-                    if (event.type === 'goal') {
-                        const scorer = players.find(p => p.id === event.scorer?.id);
-                        if (!scorer) return null; // Player might have been deleted
-                        const assist = event.assist?.id ? players.find(p => p.id === event.assist.id) : undefined;
-                        return { ...event, scorer, assist: assist || undefined };
-                    }
-                    if (event.type === 'penalty') {
-                         const player = players.find(p => p.id === event.player?.id);
-                         if (!player) return null; // Player might have been deleted
-                         return { ...event, player };
-                    }
-                    return event;
-                }).filter((e): e is MatchEvent => e !== null)
+                rosterA: rosterA_withStats,
+                rosterB: rosterB_withStats,
+                events: hydratedEvents
             };
             return hydratedMatch;
         }).filter((m): m is Match => m !== null);

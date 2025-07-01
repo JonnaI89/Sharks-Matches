@@ -112,11 +112,9 @@ export default function AdminMatchPage() {
     let newTime = match.time;
 
     if (match.status === 'live') {
-      // Pausing the clock
       newStatus = 'paused';
-      newTime = displayTime; // Persist current visual time
+      newTime = displayTime;
     } else {
-      // Starting the clock (from 'upcoming' or 'paused')
       newStatus = 'live';
     }
 
@@ -154,22 +152,16 @@ export default function AdminMatchPage() {
   const handleAddGoal = async (teamId: string, scorer: Player, assist: Player | undefined) => {
     if (!match) return;
     let newMatch = JSON.parse(JSON.stringify(match));
-    newMatch.time = displayTime; // Use current visual time for the event
+    newMatch.time = displayTime;
 
     const newGoalEvent: GoalEvent = {
         id: `e${newMatch.events.length + 1}`, type: 'goal', teamId, scorer, assist, time: newMatch.time, period: newMatch.period,
     };
     newMatch.events.push(newGoalEvent);
+
     if (teamId === newMatch.teamA.id) newMatch.scoreA += 1;
     else newMatch.scoreB += 1;
-    const updateRoster = (roster: Player[]) => roster.map(p => {
-        const newPlayer = {...p, stats: {...p.stats}};
-        if (p.id === scorer.id) newPlayer.stats.goals += 1;
-        if (assist && p.id === assist.id) newPlayer.stats.assists += 1;
-        return newPlayer;
-    });
-    if (teamId === newMatch.teamA.id) newMatch.rosterA = updateRoster(newMatch.rosterA);
-    else newMatch.rosterB = updateRoster(newMatch.rosterB);
+
     const concedingTeamId = teamId === newMatch.teamA.id ? newMatch.teamB.id : newMatch.teamA.id;
     const activePenalties = newMatch.events.filter((e: MatchEvent): e is PenaltyEvent => e.type === 'penalty' && e.teamId === concedingTeamId && e.status === 'active');
     if (activePenalties.length > 0) {
@@ -178,13 +170,14 @@ export default function AdminMatchPage() {
       const penaltyIndex = newMatch.events.findIndex((e: MatchEvent) => e.id === penaltyToCancelId);
       if (penaltyIndex > -1) (newMatch.events[penaltyIndex] as PenaltyEvent).status = 'cancelled';
     }
+
     await updateMatch(newMatch);
   };
   
   const handleAddPenalty = async (teamId: string, player: Player, duration: number) => {
     if (!match) return;
     let newMatch = JSON.parse(JSON.stringify(match));
-    newMatch.time = displayTime; // Use current visual time
+    newMatch.time = displayTime;
     const periodDurationInSeconds = newMatch.periodDurationMinutes * 60;
     const currentTimeInSeconds = timeToSeconds(newMatch.time);
     const penaltyEndTimeInSeconds = currentTimeInSeconds + duration * 60;
@@ -196,20 +189,12 @@ export default function AdminMatchPage() {
         endTimeInSecondsForPeriod -= periodDurationInSeconds;
         endPeriod++;
     }
+
     const newPenaltyEvent: PenaltyEvent = {
         id: `e${newMatch.events.length + 1}`, type: 'penalty', teamId, player, duration, time: newMatch.time, period: newMatch.period, status: 'active', expiresAt: { period: endPeriod, time: secondsToTime(endTimeInSecondsForPeriod) },
     };
     newMatch.events.push(newPenaltyEvent);
-    const updateRoster = (roster: Player[]) => roster.map(p => {
-        if (p.id === player.id) {
-            const newPlayer = {...p, stats: {...p.stats}};
-            newPlayer.stats.penalties += duration;
-            return newPlayer;
-        }
-        return p;
-    });
-    if (teamId === newMatch.teamA.id) newMatch.rosterA = updateRoster(newMatch.rosterA);
-    else newMatch.rosterB = updateRoster(newMatch.rosterB);
+    
     await updateMatch(newMatch);
   };
 
@@ -224,17 +209,10 @@ export default function AdminMatchPage() {
         }
     }
     if (lastGoalIndex === -1) return;
-    const goalToRemove = newMatch.events[lastGoalIndex] as GoalEvent;
+
     if (teamId === newMatch.teamA.id) newMatch.scoreA = Math.max(0, newMatch.scoreA - 1);
     else newMatch.scoreB = Math.max(0, newMatch.scoreB - 1);
-    const updateRoster = (roster: Player[]) => roster.map(p => {
-        const newPlayer = {...p, stats: {...p.stats}};
-        if (p.id === goalToRemove.scorer.id) newPlayer.stats.goals = Math.max(0, newPlayer.stats.goals - 1);
-        if (goalToRemove.assist && p.id === goalToRemove.assist.id) newPlayer.stats.assists = Math.max(0, newPlayer.stats.assists - 1);
-        return newPlayer;
-    });
-    newMatch.rosterA = updateRoster(newMatch.rosterA);
-    newMatch.rosterB = updateRoster(newMatch.rosterB);
+    
     newMatch.events.splice(lastGoalIndex, 1);
     await updateMatch(newMatch);
   };
@@ -247,17 +225,7 @@ export default function AdminMatchPage() {
         if (newMatch.events[i].type === 'penalty') { lastPenaltyIndex = i; break; }
     }
     if (lastPenaltyIndex === -1) return;
-    const penaltyToRemove = newMatch.events[lastPenaltyIndex] as PenaltyEvent;
-    const updateRoster = (roster: Player[]) => roster.map(p => {
-        if (p.id === penaltyToRemove.player.id) {
-            const newPlayer = {...p, stats: {...p.stats}};
-            newPlayer.stats.penalties = Math.max(0, newPlayer.stats.penalties - penaltyToRemove.duration);
-            return newPlayer;
-        }
-        return p;
-    });
-    if (penaltyToRemove.teamId === newMatch.teamA.id) newMatch.rosterA = updateRoster(newMatch.rosterA);
-    else newMatch.rosterB = updateRoster(newMatch.rosterB);
+    
     newMatch.events.splice(lastPenaltyIndex, 1);
     await updateMatch(newMatch);
   };
