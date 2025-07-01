@@ -19,7 +19,7 @@ import { useEffect } from "react";
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
-  logo: z.string().max(1, { message: "Logo can be at most 1 character." }).toUpperCase(),
+  logo: z.string(),
 });
 
 interface EditTeamDialogProps {
@@ -88,7 +88,7 @@ export function EditTeamDialog({ open, onOpenChange, team, onUpdateTeam }: EditT
                   <FormItem className="grid grid-cols-4 items-center gap-4">
                     <FormLabel className="text-right">Logo</FormLabel>
                     <FormControl>
-                      <Input {...field} className="col-span-3" maxLength={1} placeholder="Single character or empty" />
+                      <Input {...field} className="col-span-3" placeholder="URL or single character" />
                     </FormControl>
                     <FormMessage className="col-span-4 text-right" />
                   </FormItem>

@@ -10,6 +10,16 @@ interface TeamLogoProps {
 }
 
 function TeamLogo({ logo, name }: TeamLogoProps) {
+  const isUrl = logo && (logo.startsWith("http://") || logo.startsWith("https://"));
+
+  if (isUrl) {
+    return (
+      <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center overflow-hidden" data-ai-hint="team logo">
+        <img src={logo} alt={`${name} logo`} className="h-full w-full object-cover" />
+      </div>
+    );
+  }
+
   return (
     <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center text-2xl font-bold text-muted-foreground" data-ai-hint="team logo">
       {logo}
