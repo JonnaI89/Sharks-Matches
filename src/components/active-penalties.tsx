@@ -17,8 +17,8 @@ const secondsToTime = (totalSeconds: number): string => {
     return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 };
 
-function getRemainingPenaltyTime(penalty: PenaltyEvent, match: Match): string {
-    if (!penalty.expiresAt) return "00:00";
+function getPenaltyTimeInfo(penalty: PenaltyEvent, match: Match): { secondsLeft: number; timeString: string } {
+    if (!penalty.expiresAt) return { secondsLeft: 0, timeString: "00:00" };
     
     const periodDurationInSeconds = match.periodDurationMinutes * 60;
 
@@ -27,20 +27,24 @@ function getRemainingPenaltyTime(penalty: PenaltyEvent, match: Match): string {
 
     const secondsLeft = expirationTimeTotalSeconds - currentTimeTotalSeconds;
 
-    return secondsToTime(secondsLeft);
+    return { secondsLeft, timeString: secondsToTime(secondsLeft) };
 }
 
 export function ActivePenalties({ match }: { match: Match }) {
-    const activePenalties = match.events.filter(
-        (e): e is PenaltyEvent => e.type === 'penalty' && e.status === 'active'
-    );
+    const penaltiesWithTime = match.events
+        .filter((e): e is PenaltyEvent => e.type === 'penalty' && e.status === 'active')
+        .map(p => ({
+            penalty: p,
+            timeInfo: getPenaltyTimeInfo(p, match)
+        }))
+        .filter(p => p.timeInfo.secondsLeft > 0);
 
-    if (activePenalties.length === 0) {
-        return null; // Don't render anything if there are no active penalties
+    if (penaltiesWithTime.length === 0) {
+        return null;
     }
 
-    const teamAPenalties = activePenalties.filter(p => p.teamId === match.teamA.id);
-    const teamBPenalties = activePenalties.filter(p => p.teamId === match.teamB.id);
+    const teamAPenalties = penaltiesWithTime.filter(p => p.penalty.teamId === match.teamA.id);
+    const teamBPenalties = penaltiesWithTime.filter(p => p.penalty.teamId === match.teamB.id);
 
     return (
         <Card>
@@ -57,12 +61,12 @@ export function ActivePenalties({ match }: { match: Match }) {
                             <>
                                 <h3 className="font-semibold mb-2">{match.teamA.name}</h3>
                                 <ul className="space-y-2">
-                                    {teamAPenalties.map(p => (
-                                        <li key={p.id} className="flex items-center justify-between p-2 rounded-md bg-muted">
-                                            <span>#{p.player.number} {p.player.name} ({p.duration} min)</span>
+                                    {teamAPenalties.map(({ penalty, timeInfo }) => (
+                                        <li key={penalty.id} className="flex items-center justify-between p-2 rounded-md bg-muted">
+                                            <span>#{penalty.player.number} {penalty.player.name} ({penalty.duration} min)</span>
                                             <span className="font-mono font-bold flex items-center gap-1">
                                                 <Timer className="h-4 w-4" />
-                                                {getRemainingPenaltyTime(p, match)}
+                                                {timeInfo.timeString}
                                             </span>
                                         </li>
                                     ))}
@@ -75,12 +79,12 @@ export function ActivePenalties({ match }: { match: Match }) {
                             <>
                                 <h3 className="font-semibold mb-2">{match.teamB.name}</h3>
                                 <ul className="space-y-2">
-                                    {teamBPenalties.map(p => (
-                                        <li key={p.id} className="flex items-center justify-between p-2 rounded-md bg-muted">
-                                            <span>#{p.player.number} {p.player.name} ({p.duration} min)</span>
+                                    {teamBPenalties.map(({ penalty, timeInfo }) => (
+                                        <li key={penalty.id} className="flex items-center justify-between p-2 rounded-md bg-muted">
+                                            <span>#{penalty.player.number} {penalty.player.name} ({penalty.duration} min)</span>
                                             <span className="font-mono font-bold flex items-center gap-1">
                                                 <Timer className="h-4 w-4" />
-                                                {getRemainingPenaltyTime(p, match)}
+                                                {timeInfo.timeString}
                                             </span>
                                         </li>
                                     ))}
