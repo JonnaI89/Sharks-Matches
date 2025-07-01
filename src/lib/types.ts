@@ -5,7 +5,7 @@ export interface Team {
 }
 
 export interface Player {
-  id: string;
+  id:string;
   name: string;
   number: number;
   isGoalie?: boolean;
@@ -35,6 +35,11 @@ export interface PenaltyEvent {
   duration: number; // in minutes
   time: string;
   period: number;
+  status: 'active' | 'cancelled' | 'expired';
+  expiresAt: {
+    period: number;
+    time: string;
+  } | null;
 }
 
 export type MatchEvent = GoalEvent | PenaltyEvent;

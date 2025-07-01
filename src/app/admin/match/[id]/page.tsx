@@ -14,6 +14,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+const timeToSeconds = (time: string) => {
+    const [minutes, seconds] = time.split(':').map(Number);
+    return minutes * 60 + seconds;
+};
+
+const secondsToTime = (totalSeconds: number) => {
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+};
+
 function RosterTable({ teamName, players }: { teamName: string; players: Player[] }) {
     return (
         <Card>
@@ -76,29 +87,32 @@ export default function AdminMatchPage() {
       interval = setInterval(() => {
         setMatch(prevMatch => {
           if (!prevMatch) return null;
-          const [minutes, seconds] = prevMatch.time.split(':').map(Number);
           
-          if (minutes >= 20) {
+          let newMatch = JSON.parse(JSON.stringify(prevMatch));
+          
+          const currentTimeInSeconds = timeToSeconds(newMatch.time);
+          
+          if (currentTimeInSeconds >= 1200) {
               setIsRunning(false);
-              return { ...prevMatch, time: "20:00" };
+              newMatch.time = "20:00";
+              return newMatch;
           }
 
-          let newSeconds = seconds + 1;
-          let newMinutes = minutes;
-          if (newSeconds > 59) {
-            newSeconds = 0;
-            newMinutes += 1;
-          }
-
-          if (newMinutes >= 20) {
-             setIsRunning(false);
-             return { ...prevMatch, time: "20:00" };
-          }
+          newMatch.time = secondsToTime(currentTimeInSeconds + 1);
           
-          return {
-            ...prevMatch,
-            time: `${String(newMinutes).padStart(2, '0')}:${String(newSeconds).padStart(2, '0')}`
-          };
+          // Check for penalty expirations
+          newMatch.events = newMatch.events.map((event: PenaltyEvent | GoalEvent) => {
+            if (event.type === 'penalty' && event.status === 'active' && event.expiresAt) {
+                const isExpired = newMatch.period > event.expiresAt.period ||
+                    (newMatch.period === event.expiresAt.period && timeToSeconds(newMatch.time) >= timeToSeconds(event.expiresAt.time));
+                if (isExpired) {
+                    return { ...event, status: 'expired' };
+                }
+            }
+            return event;
+          });
+
+          return newMatch;
         });
       }, 1000);
     }
@@ -154,11 +168,29 @@ export default function AdminMatchPage() {
               return newPlayer;
           });
       };
-
+      
       if (teamId === newMatch.teamA.id) {
           newMatch.rosterA = updateRoster(newMatch.rosterA);
       } else {
           newMatch.rosterB = updateRoster(newMatch.rosterB);
+      }
+
+      // Cancel penalty if opposing team scores
+      const concedingTeamId = teamId === newMatch.teamA.id ? newMatch.teamB.id : newMatch.teamA.id;
+      const activePenalties = newMatch.events.filter(
+        (e: MatchEvent): e is PenaltyEvent => e.type === 'penalty' && e.teamId === concedingTeamId && e.status === 'active'
+      );
+
+      if (activePenalties.length > 0) {
+        activePenalties.sort((a, b) => {
+          if (a.period !== b.period) return a.period - b.period;
+          return a.time.localeCompare(b.time);
+        });
+        const penaltyToCancelId = activePenalties[0].id;
+        const penaltyIndex = newMatch.events.findIndex((e: MatchEvent) => e.id === penaltyToCancelId);
+        if (penaltyIndex > -1) {
+            (newMatch.events[penaltyIndex] as PenaltyEvent).status = 'cancelled';
+        }
       }
 
       return newMatch;
@@ -171,6 +203,17 @@ export default function AdminMatchPage() {
 
         const newMatch = JSON.parse(JSON.stringify(prevMatch));
 
+        const currentTimeInSeconds = timeToSeconds(newMatch.time);
+        const penaltyEndTimeInSeconds = currentTimeInSeconds + duration * 60;
+
+        let endPeriod = newMatch.period;
+        let endTimeInSecondsForPeriod = penaltyEndTimeInSeconds;
+
+        while (endTimeInSecondsForPeriod >= 1200) { // 1200 seconds = 20 minutes
+            endTimeInSecondsForPeriod -= 1200;
+            endPeriod++;
+        }
+        
         const newPenaltyEvent: PenaltyEvent = {
             id: `e${newMatch.events.length + 1}`,
             type: 'penalty',
@@ -179,6 +222,11 @@ export default function AdminMatchPage() {
             duration,
             time: newMatch.time,
             period: newMatch.period,
+            status: 'active',
+            expiresAt: {
+                period: endPeriod,
+                time: secondsToTime(endTimeInSecondsForPeriod),
+            },
         };
         
         newMatch.events.push(newPenaltyEvent);
@@ -223,7 +271,7 @@ export default function AdminMatchPage() {
         return prevMatch;
       }
 
-      const goalToRemove = newMatch.events[lastGoalIndex];
+      const goalToRemove = newMatch.events[lastGoalIndex] as GoalEvent;
 
       if (teamId === newMatch.teamA.id) {
         newMatch.scoreA = Math.max(0, newMatch.scoreA - 1);
@@ -248,6 +296,50 @@ export default function AdminMatchPage() {
       newMatch.rosterB = updateRoster(newMatch.rosterB);
 
       newMatch.events.splice(lastGoalIndex, 1);
+
+      return newMatch;
+    });
+  };
+  
+    const handleRemoveLastPenalty = () => {
+    setMatch(prevMatch => {
+      if (!prevMatch) return null;
+
+      const newMatch = JSON.parse(JSON.stringify(prevMatch));
+
+      let lastPenaltyIndex = -1;
+      for (let i = newMatch.events.length - 1; i >= 0; i--) {
+        if (newMatch.events[i].type === 'penalty') {
+          lastPenaltyIndex = i;
+          break;
+        }
+      }
+
+      if (lastPenaltyIndex === -1) {
+        return prevMatch; // No penalty to remove
+      }
+
+      const penaltyToRemove = newMatch.events[lastPenaltyIndex] as PenaltyEvent;
+
+      // Revert player stats
+      const updateRoster = (roster: Player[]) => {
+        return roster.map(p => {
+          if (p.id === penaltyToRemove.player.id) {
+            const newPlayer = {...p, stats: {...p.stats}};
+            newPlayer.stats.penalties = Math.max(0, newPlayer.stats.penalties - penaltyToRemove.duration);
+            return newPlayer;
+          }
+          return p;
+        });
+      };
+
+      if (penaltyToRemove.teamId === newMatch.teamA.id) {
+        newMatch.rosterA = updateRoster(newMatch.rosterA);
+      } else {
+        newMatch.rosterB = updateRoster(newMatch.rosterB);
+      }
+      
+      newMatch.events.splice(lastPenaltyIndex, 1);
 
       return newMatch;
     });
@@ -278,7 +370,14 @@ export default function AdminMatchPage() {
         if (!prevMatch || prevMatch.status === 'finished') return prevMatch;
         
         if (prevMatch.period >= 3) {
-            return { ...prevMatch, time: "20:00", status: 'finished' };
+            // Expire all active penalties
+            const finalEvents = prevMatch.events.map(e => {
+                if (e.type === 'penalty' && e.status === 'active') {
+                    return { ...e, status: 'expired' };
+                }
+                return e;
+            });
+            return { ...prevMatch, time: "20:00", status: 'finished', events: finalEvents };
         }
         return {
             ...prevMatch,
@@ -346,21 +445,26 @@ export default function AdminMatchPage() {
                         </Button>
                     </div>
                 </div>
-                 <div className="p-4 border rounded-lg flex flex-col">
+                <div className="p-4 border rounded-lg flex flex-col">
                     <h3 className="font-medium mb-2">Penalty</h3>
-                    <AddPenaltyDialog
-                        rosterA={match.rosterA}
-                        rosterB={match.rosterB}
-                        onAddPenalty={handleAddPenalty}
-                        teamAId={match.teamA.id}
-                        teamBId={match.teamB.id}
-                        teamAName={match.teamA.name}
-                        teamBName={match.teamB.name}
-                    >
-                        <Button variant="outline" className="w-full h-full flex-1">
-                            <Shield className="mr-2 h-4 w-4" /> Add Penalty
+                    <div className="flex flex-col sm:flex-row gap-2 flex-1">
+                         <AddPenaltyDialog
+                            rosterA={match.rosterA}
+                            rosterB={match.rosterB}
+                            onAddPenalty={handleAddPenalty}
+                            teamAId={match.teamA.id}
+                            teamBId={match.teamB.id}
+                            teamAName={match.teamA.name}
+                            teamBName={match.teamB.name}
+                        >
+                            <Button variant="outline" className="w-full h-full flex-1">
+                                <Shield className="mr-2 h-4 w-4" /> Add Penalty
+                            </Button>
+                        </AddPenaltyDialog>
+                        <Button variant="outline" className="w-full h-full flex-1" onClick={handleRemoveLastPenalty}>
+                            <MinusCircle className="mr-2" /> Remove Penalty
                         </Button>
-                    </AddPenaltyDialog>
+                    </div>
                 </div>
             </div>
         </CardContent>

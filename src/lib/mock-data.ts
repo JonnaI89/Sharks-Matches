@@ -1,4 +1,4 @@
-import type { Match, Player, Team } from './types';
+import type { Match, Player, Team, PenaltyEvent } from './types';
 
 export const teams: Record<string, Team> = {
   team1: { id: 'team1', name: 'Stockholm Strikers', logo: 'S' },
@@ -35,7 +35,7 @@ export let matches: Match[] = [
     rosterB: getRosterForTeam('team2'),
     events: [
       { id: 'e1', type: 'goal', teamId: 'team1', scorer: players.find(p => p.id === 'p1')!, time: '05:21', period: 1 },
-      { id: 'e2', type: 'penalty', teamId: 'team2', player: players.find(p => p.id === 'p4')!, duration: 2, time: '11:30', period: 1 },
+      { id: 'e2', type: 'penalty', teamId: 'team2', player: players.find(p => p.id === 'p4')!, duration: 2, time: '11:30', period: 1, status: 'expired', expiresAt: { period: 1, time: '13:30' } },
       { id: 'e3', type: 'goal', teamId: 'team2', scorer: players.find(p => p.id === 'p4')!, assist: players.find(p => p.id === 'p6'), time: '18:55', period: 1 },
       { id: 'e4', type: 'goal', teamId: 'team1', scorer: players.find(p => p.id === 'p3')!, assist: players.find(p => p.id === 'p2'), time: '08:13', period: 2 },
     ],
