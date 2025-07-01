@@ -27,10 +27,12 @@ interface AddPenaltyDialogProps {
   rosterB: Player[];
   teamAId: string;
   teamBId: string;
+  teamAName: string;
+  teamBName: string;
   onAddPenalty: (teamId: string, player: Player, duration: number) => void;
 }
 
-export function AddPenaltyDialog({ children, rosterA, rosterB, teamAId, teamBId, onAddPenalty }: AddPenaltyDialogProps) {
+export function AddPenaltyDialog({ children, rosterA, rosterB, teamAId, teamBId, teamAName, teamBName, onAddPenalty }: AddPenaltyDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [teamId, setTeamId] = useState<string | undefined>();
   const [playerId, setPlayerId] = useState<string | undefined>();
@@ -70,8 +72,8 @@ export function AddPenaltyDialog({ children, rosterA, rosterB, teamAId, teamBId,
                 <SelectValue placeholder="Select a team" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={teamAId}>{rosterA[0]?.name.split(" ")[0]} Team</SelectItem>
-                <SelectItem value={teamBId}>{rosterB[0]?.name.split(" ")[0]} Team</SelectItem>
+                <SelectItem value={teamAId}>{teamAName}</SelectItem>
+                <SelectItem value={teamBId}>{teamBName}</SelectItem>
               </SelectContent>
             </Select>
           </div>

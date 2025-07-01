@@ -354,6 +354,8 @@ export default function AdminMatchPage() {
                         onAddPenalty={handleAddPenalty}
                         teamAId={match.teamA.id}
                         teamBId={match.teamB.id}
+                        teamAName={match.teamA.name}
+                        teamBName={match.teamB.name}
                     >
                         <Button variant="outline" className="w-full h-full flex-1">
                             <Shield className="mr-2 h-4 w-4" /> Add Penalty

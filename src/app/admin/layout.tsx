@@ -11,7 +11,7 @@ import {
   SidebarInset,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { Gamepad2, LayoutDashboard, Settings } from "lucide-react";
+import { Gamepad2, LayoutDashboard, Settings, Users } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
@@ -43,6 +43,18 @@ export default function AdminLayout({
                   <Link href="/admin">
                     <LayoutDashboard />
                     <span>Dashboard</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname === "/admin/rosters"}
+                  tooltip={{ children: "Rosters" }}
+                >
+                  <Link href="/admin/rosters">
+                    <Users />
+                    <span>Roster Management</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

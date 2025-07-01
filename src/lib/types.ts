@@ -9,6 +9,7 @@ export interface Player {
   name: string;
   number: number;
   isGoalie?: boolean;
+  teamId: string;
   stats: {
     goals: number;
     assists: number;
