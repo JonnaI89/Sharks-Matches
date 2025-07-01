@@ -25,36 +25,25 @@ export function Scoreboard({ match }: ScoreboardProps) {
   return (
     <Card className="shadow-lg">
       <CardContent className="p-4 md:p-6">
-        <div className="grid grid-cols-3 items-center text-center gap-x-2 gap-y-2">
-          {/* Row 1: Team Names */}
-          <div className="text-left md:text-center col-span-1">
-            <span className="text-base md:text-2xl font-semibold truncate">{match.teamA.name}</span>
+        <div className="grid grid-cols-[1fr_auto_1fr] items-start justify-items-center gap-x-2 md:gap-x-4">
+          {/* Team A */}
+          <div className="flex w-full flex-col items-center gap-2 text-center">
+            <span className="text-base font-semibold leading-tight md:text-2xl">{match.teamA.name}</span>
+            <span className="text-4xl font-bold text-primary md:text-5xl">{match.scoreA}</span>
           </div>
-          
-          <div className="hidden md:block col-span-1">
-             <Badge variant="secondary" className="text-xs md:text-sm">
+
+          {/* Middle Info */}
+          <div className="flex flex-col items-center gap-y-1 pt-1">
+            <Badge variant="secondary" className="text-xs md:text-sm">
                 {match.status === 'live' ? `P${match.period}` : match.status.toUpperCase()}
-              </Badge>
+            </Badge>
+            <span className="mt-1 font-mono text-lg font-bold md:text-2xl">{match.time}</span>
           </div>
 
-          <div className="text-right md:text-center col-span-1">
-            <span className="text-base md:text-2xl font-semibold truncate">{match.teamB.name}</span>
-          </div>
-
-          {/* Row 2: Scores and Time */}
-           <div className="text-left md:text-center col-span-1">
-             <span className="text-4xl md:text-5xl font-bold text-primary">{match.scoreA}</span>
-          </div>
-
-          <div className="flex flex-col items-center col-span-1">
-             <Badge variant="secondary" className="mb-1 text-xs md:hidden">
-                {match.status === 'live' ? `P${match.period}` : match.status.toUpperCase()}
-              </Badge>
-              <span className="text-lg md:text-2xl font-mono font-bold">{match.time}</span>
-          </div>
-          
-          <div className="text-right md:text-center col-span-1">
-             <span className="text-4xl md:text-5xl font-bold text-primary">{match.scoreB}</span>
+          {/* Team B */}
+          <div className="flex w-full flex-col items-center gap-2 text-center">
+            <span className="text-base font-semibold leading-tight md:text-2xl">{match.teamB.name}</span>
+            <span className="text-4xl font-bold text-primary md:text-5xl">{match.scoreB}</span>
           </div>
         </div>
       </CardContent>
