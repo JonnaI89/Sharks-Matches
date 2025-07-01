@@ -53,11 +53,10 @@ const sanitizeMatchForFirebase = (match: Match | Omit<Match, 'id'>) => {
 
 export function AdminDataProvider({ children }: { children: ReactNode }) {
     const { toast } = useToast();
-    const [matches, setMatches] = useState<Match[]>([]);
+    const [matches, setMatches] = useState<Match[] | null>(null);
     const [teams, setTeams] = useState<Record<string, Team>>({});
     const [players, setPlayers] = useState<Player[]>([]);
     const [rawMatches, setRawMatches] = useState<any[]>([]);
-    const [isDataLoaded, setIsDataLoaded] = useState(false);
 
     const [loadingStatus, setLoadingStatus] = useState({
         teams: true,
@@ -106,7 +105,7 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
 
     useEffect(() => {
         if (!isRawDataLoaded) {
-            setIsDataLoaded(false);
+            setMatches(null);
             return;
         }
 
@@ -193,7 +192,6 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
         }).filter((m): m is Match => m !== null);
         
         setMatches(hydratedMatches);
-        setIsDataLoaded(true);
 
     }, [rawMatches, teams, players, isRawDataLoaded]);
 
@@ -264,7 +262,7 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
             toast({ title: "Cannot Remove Team", description: "Please remove all players from the team first.", variant: "destructive" });
             return;
         }
-        if (matches.some(m => m.teamA.id === teamId || m.teamB.id === teamId)) {
+        if (matches && matches.some(m => m.teamA.id === teamId || m.teamB.id === teamId)) {
             toast({ title: "Cannot Remove Team", description: "This team is in a match. Please remove the match first.", variant: "destructive" });
             return;
         }
@@ -297,7 +295,10 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const value = {
-        matches, teams, players, isDataLoaded,
+        matches: matches || [],
+        teams, 
+        players, 
+        isDataLoaded: matches !== null,
         addMatch, updateMatch, deleteMatch, addTeam, updateTeam, deleteTeam, addPlayer, deletePlayer,
     };
 
