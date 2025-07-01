@@ -53,10 +53,10 @@ export function MatchCard({ match }: MatchCardProps) {
           </div>
         </CardHeader>
         <CardContent className="p-6">
-          <div className="grid grid-cols-[2fr_auto_2fr] items-start justify-center gap-x-3 text-center">
+          <div className="grid grid-cols-[1fr_auto_1fr] items-start justify-center gap-x-3 text-center">
             <div className="flex flex-col items-center gap-2">
               <TeamLogo logo={match.teamA.logo} name={match.teamA.name} />
-              <p className="font-semibold text-sm h-10 flex items-center justify-center">{match.teamA.name}</p>
+              <p className="font-semibold text-sm h-10 flex items-center justify-center text-center">{match.teamA.name}</p>
               <p className="text-4xl font-bold">{match.scoreA}</p>
             </div>
             
@@ -64,7 +64,7 @@ export function MatchCard({ match }: MatchCardProps) {
             
             <div className="flex flex-col items-center gap-2">
               <TeamLogo logo={match.teamB.logo} name={match.teamB.name} />
-              <p className="font-semibold text-sm h-10 flex items-center justify-center">{match.teamB.name}</p>
+              <p className="font-semibold text-sm h-10 flex items-center justify-center text-center">{match.teamB.name}</p>
               <p className="text-4xl font-bold">{match.scoreB}</p>
             </div>
           </div>
