@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster"
 import { AdminDataProvider } from '@/context/admin-data-context';
 
 export const metadata: Metadata = {
-  title: 'Sarpsborg IBK Live',
+  title: 'Live Center',
   description: 'The best live score center for floorball',
 };
 

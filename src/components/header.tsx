@@ -6,7 +6,10 @@ export function Header() {
   return (
     <header className="bg-card border-b sticky top-0 z-50 shadow-sm">
       <div className="container mx-auto px-4">
-        <div className="flex justify-end items-center h-16">
+        <div className="flex justify-between items-center h-16">
+          <Link href="/" className="text-xl font-bold">
+            Live Center
+          </Link>
           <nav>
             <Button variant="ghost" asChild>
               <Link href="/admin">
