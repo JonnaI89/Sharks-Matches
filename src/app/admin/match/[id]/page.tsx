@@ -113,7 +113,7 @@ export default function AdminMatchPage() {
       // When starting, we just set the status to 'live'. DB time is the correct start time.
       const updatedMatch = {
           ...match,
-          status: 'live' as const, // Match is live once started, even if paused.
+          status: newIsRunning ? 'live' : (match.status === 'live' ? 'live' : 'upcoming'),
           time: !newIsRunning ? displayTime : match.time,
       };
 
