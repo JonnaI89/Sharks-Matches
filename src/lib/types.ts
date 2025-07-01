@@ -53,6 +53,8 @@ export interface Match {
   scoreB: number;
   period: number;
   time: string; // current match time
+  totalPeriods: number;
+  periodDurationMinutes: number;
   events: MatchEvent[];
   rosterA: Player[];
   rosterB: Player[];

@@ -19,17 +19,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Input } from "../ui/input";
 
 interface CreateMatchDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   teams: Team[];
-  onAddMatch: (teamAId: string, teamBId: string) => void;
+  onAddMatch: (teamAId: string, teamBId: string, totalPeriods: number, periodDurationMinutes: number) => void;
 }
 
 export function CreateMatchDialog({ open, onOpenChange, teams, onAddMatch }: CreateMatchDialogProps) {
   const [teamAId, setTeamAId] = useState<string | undefined>();
   const [teamBId, setTeamBId] = useState<string | undefined>();
+  const [totalPeriods, setTotalPeriods] = useState<string>("3");
+  const [periodDuration, setPeriodDuration] = useState<string>("20");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -37,11 +40,16 @@ export function CreateMatchDialog({ open, onOpenChange, teams, onAddMatch }: Cre
       setError(null);
       setTeamAId(undefined);
       setTeamBId(undefined);
+      setTotalPeriods("3");
+      setPeriodDuration("20");
     }
   }, [open]);
 
   const handleSubmit = () => {
     setError(null);
+    const periods = parseInt(totalPeriods, 10);
+    const duration = parseInt(periodDuration, 10);
+
     if (!teamAId || !teamBId) {
       setError("Please select both teams.");
       return;
@@ -50,7 +58,16 @@ export function CreateMatchDialog({ open, onOpenChange, teams, onAddMatch }: Cre
       setError("Teams cannot play against themselves.");
       return;
     }
-    onAddMatch(teamAId, teamBId);
+    if (isNaN(periods) || periods <= 0) {
+      setError("Number of periods must be a positive number.");
+      return;
+    }
+    if (isNaN(duration) || duration <= 0) {
+      setError("Period duration must be a positive number.");
+      return;
+    }
+
+    onAddMatch(teamAId, teamBId, periods, duration);
     onOpenChange(false);
   };
 
@@ -60,7 +77,7 @@ export function CreateMatchDialog({ open, onOpenChange, teams, onAddMatch }: Cre
         <DialogHeader>
           <DialogTitle>Create New Match</DialogTitle>
           <DialogDescription>
-            Select two teams to create a new match.
+            Select two teams and configure match settings.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
@@ -93,6 +110,28 @@ export function CreateMatchDialog({ open, onOpenChange, teams, onAddMatch }: Cre
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="periods" className="text-right">Periods</Label>
+            <Input
+              id="periods"
+              type="number"
+              value={totalPeriods}
+              onChange={(e) => setTotalPeriods(e.target.value)}
+              className="col-span-3"
+              min="1"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="duration" className="text-right">Duration (min)</Label>
+            <Input
+              id="duration"
+              type="number"
+              value={periodDuration}
+              onChange={(e) => setPeriodDuration(e.target.value)}
+              className="col-span-3"
+              min="1"
+            />
           </div>
           {error && <p className="col-span-4 text-center text-sm text-destructive">{error}</p>}
         </div>

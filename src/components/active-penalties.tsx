@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Shield, Timer } from "lucide-react";
 
 const timeToSeconds = (time: string): number => {
+    if (!time) return 0;
     const [minutes, seconds] = time.split(':').map(Number);
     return (minutes * 60) + seconds;
 };
@@ -18,9 +19,11 @@ const secondsToTime = (totalSeconds: number): string => {
 
 function getRemainingPenaltyTime(penalty: PenaltyEvent, match: Match): string {
     if (!penalty.expiresAt) return "00:00";
+    
+    const periodDurationInSeconds = match.periodDurationMinutes * 60;
 
-    const currentTimeTotalSeconds = (match.period - 1) * 1200 + timeToSeconds(match.time);
-    const expirationTimeTotalSeconds = (penalty.expiresAt.period - 1) * 1200 + timeToSeconds(penalty.expiresAt.time);
+    const currentTimeTotalSeconds = (match.period - 1) * periodDurationInSeconds + timeToSeconds(match.time);
+    const expirationTimeTotalSeconds = (penalty.expiresAt.period - 1) * periodDurationInSeconds + timeToSeconds(penalty.expiresAt.time);
 
     const secondsLeft = expirationTimeTotalSeconds - currentTimeTotalSeconds;
 

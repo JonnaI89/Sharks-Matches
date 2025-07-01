@@ -6,6 +6,7 @@ import { Scoreboard } from "@/components/scoreboard";
 import { ActivePenalties } from "@/components/active-penalties";
 
 const timeToSeconds = (time: string) => {
+    if (!time) return 0;
     const [minutes, seconds] = time.split(':').map(Number);
     return minutes * 60 + seconds;
 };
@@ -46,9 +47,10 @@ export function LiveMatchWrapper({ match: matchProp }: { match: Match }) {
                 if (prevMatch.status !== 'live') return prevMatch;
                 
                 const newMatch = JSON.parse(JSON.stringify(prevMatch));
+                const periodDurationInSeconds = newMatch.periodDurationMinutes * 60;
 
                 const currentTimeInSeconds = timeToSeconds(newMatch.time);
-                if (currentTimeInSeconds >= 1200) { // 20 minutes
+                if (currentTimeInSeconds >= periodDurationInSeconds) { // Stop at period end
                     return prevMatch; // Stop the timer
                 }
 
@@ -56,9 +58,9 @@ export function LiveMatchWrapper({ match: matchProp }: { match: Match }) {
 
                 newMatch.events = newMatch.events.map((event: PenaltyEvent | GoalEvent) => {
                     if (event.type === 'penalty' && event.status === 'active' && event.expiresAt) {
-                        const isExpired = newMatch.period > event.expiresAt.period ||
-                            (newMatch.period === event.expiresAt.period && timeToSeconds(newMatch.time) >= timeToSeconds(event.expiresAt.time));
-                        if (isExpired) {
+                        const expirationTimeInSeconds = (event.expiresAt.period - 1) * periodDurationInSeconds + timeToSeconds(event.expiresAt.time);
+                        const gameTimeInSeconds = (newMatch.period - 1) * periodDurationInSeconds + timeToSeconds(newMatch.time);
+                        if (gameTimeInSeconds >= expirationTimeInSeconds) {
                             return { ...event, status: 'expired' };
                         }
                     }

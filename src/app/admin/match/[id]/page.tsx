@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const timeToSeconds = (time: string) => {
+    if (!time) return 0;
     const [minutes, seconds] = time.split(':').map(Number);
     return minutes * 60 + seconds;
 };
@@ -78,7 +79,8 @@ export default function AdminMatchPage() {
         setEditableMinutes(m);
         setEditableSeconds(s);
         setEditablePeriod(String(match.period));
-        setIsRunning(match.status === 'live' && timeToSeconds(match.time) < 1200);
+        const periodDurationInSeconds = (match.periodDurationMinutes || 20) * 60;
+        setIsRunning(match.status === 'live' && timeToSeconds(match.time) < periodDurationInSeconds);
     }
   }, [match]);
 
@@ -99,10 +101,11 @@ export default function AdminMatchPage() {
 
         let newMatch = JSON.parse(JSON.stringify(currentMatch));
         const currentTimeInSeconds = timeToSeconds(newMatch.time);
+        const periodDurationInSeconds = newMatch.periodDurationMinutes * 60;
         
-        if (currentTimeInSeconds >= 1200) {
+        if (currentTimeInSeconds >= periodDurationInSeconds) {
             setIsRunning(false);
-            newMatch.time = "20:00";
+            newMatch.time = secondsToTime(periodDurationInSeconds);
             newMatch.status = 'upcoming'; // To indicate period end, admin must click "End Period"
             updateMatch(newMatch);
             return;
@@ -112,9 +115,9 @@ export default function AdminMatchPage() {
         
         newMatch.events = newMatch.events.map((event: PenaltyEvent | GoalEvent) => {
           if (event.type === 'penalty' && event.status === 'active' && event.expiresAt) {
-              const isExpired = newMatch.period > event.expiresAt.period ||
-                  (newMatch.period === event.expiresAt.period && timeToSeconds(newMatch.time) >= timeToSeconds(event.expiresAt.time));
-              if (isExpired) {
+              const expirationTimeInSeconds = (event.expiresAt.period - 1) * periodDurationInSeconds + timeToSeconds(event.expiresAt.time);
+              const gameTimeInSeconds = (newMatch.period - 1) * periodDurationInSeconds + timeToSeconds(newMatch.time);
+              if (gameTimeInSeconds >= expirationTimeInSeconds) {
                   return { ...event, status: 'expired' };
               }
           }
@@ -187,12 +190,15 @@ export default function AdminMatchPage() {
   
   const handleAddPenalty = (teamId: string, player: Player, duration: number) => {
     let newMatch = JSON.parse(JSON.stringify(match));
+    const periodDurationInSeconds = newMatch.periodDurationMinutes * 60;
     const currentTimeInSeconds = timeToSeconds(newMatch.time);
     const penaltyEndTimeInSeconds = currentTimeInSeconds + duration * 60;
+    
     let endPeriod = newMatch.period;
     let endTimeInSecondsForPeriod = penaltyEndTimeInSeconds;
-    while (endTimeInSecondsForPeriod >= 1200) {
-        endTimeInSecondsForPeriod -= 1200;
+    
+    while (endTimeInSecondsForPeriod >= periodDurationInSeconds) {
+        endTimeInSecondsForPeriod -= periodDurationInSeconds;
         endPeriod++;
     }
     const newPenaltyEvent: PenaltyEvent = {
@@ -264,10 +270,10 @@ export default function AdminMatchPage() {
     let newSeconds = parseInt(editableSeconds, 10);
     let newPeriod = parseInt(editablePeriod, 10);
     if (isNaN(newMinutes) || newMinutes < 0) newMinutes = 0;
-    if (newMinutes > 20) newMinutes = 20;
+    if (newMinutes > match.periodDurationMinutes) newMinutes = match.periodDurationMinutes;
     if (isNaN(newSeconds) || newSeconds < 0 || newSeconds > 59) newSeconds = 0;
     if (isNaN(newPeriod) || newPeriod < 1) newPeriod = 1;
-    if (newMinutes === 20) newSeconds = 0;
+    if (newMinutes === match.periodDurationMinutes) newSeconds = 0;
     
     updateMatch({ ...match, time: `${String(newMinutes).padStart(2, '0')}:${String(newSeconds).padStart(2, '0')}`, period: newPeriod });
   };
@@ -276,12 +282,12 @@ export default function AdminMatchPage() {
     setIsRunning(false);
     let newMatch = JSON.parse(JSON.stringify(match));
     if (newMatch.status === 'finished') return;
-    if (newMatch.period >= 3) {
+    if (newMatch.period >= newMatch.totalPeriods) {
         newMatch.events = newMatch.events.map((e: MatchEvent) => {
             if (e.type === 'penalty' && e.status === 'active') return { ...e, status: 'expired' };
             return e;
         });
-        newMatch.time = "20:00";
+        newMatch.time = secondsToTime(newMatch.periodDurationMinutes * 60);
         newMatch.status = 'finished';
     } else {
         newMatch.period += 1;
@@ -311,18 +317,18 @@ export default function AdminMatchPage() {
                     <div className="grid gap-1.5">
                         <Label>Time (MM:SS)</Label>
                         <div className="flex items-center gap-1">
-                            <Input type="number" value={editableMinutes} onChange={(e) => setEditableMinutes(e.target.value)} className="w-16" disabled={isRunning} max={20} min={0}/>
+                            <Input type="number" value={editableMinutes} onChange={(e) => setEditableMinutes(e.target.value)} className="w-16" disabled={isRunning} max={match.periodDurationMinutes} min={0}/>
                             <span className="font-bold">:</span>
                             <Input type="number" value={editableSeconds} onChange={(e) => setEditableSeconds(e.target.value)} className="w-16" disabled={isRunning} max={59} min={0}/>
                         </div>
                     </div>
                     <div className="grid gap-1.5">
                         <Label htmlFor="period">Period</Label>
-                        <Input id="period" type="number" value={editablePeriod} onChange={(e) => setEditablePeriod(e.target.value)} className="w-16" disabled={isRunning} max={3} min={1}/>
+                        <Input id="period" type="number" value={editablePeriod} onChange={(e) => setEditablePeriod(e.target.value)} className="w-16" disabled={isRunning} max={match.totalPeriods} min={1}/>
                     </div>
                     <Button onClick={handleTimeUpdate} disabled={isRunning}>Set</Button>
                      <Button variant="destructive" onClick={handleEndPeriod} disabled={match.status === 'finished'}>
-                        <Square className="mr-2 h-4 w-4" /> {match.period >= 3 ? 'End Match' : 'End Period'}
+                        <Square className="mr-2 h-4 w-4" /> {match.period >= match.totalPeriods ? 'End Match' : 'End Period'}
                     </Button>
                 </div>
             </div>

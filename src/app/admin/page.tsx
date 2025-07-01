@@ -44,7 +44,7 @@ export default function AdminDashboard() {
     setMatches((prevMatches) => prevMatches.filter((match) => match.id !== id));
   };
 
-  const handleAddMatch = (teamAId: string, teamBId: string) => {
+  const handleAddMatch = (teamAId: string, teamBId: string, totalPeriods: number, periodDurationMinutes: number) => {
     const teamA = teams[teamAId];
     const teamB = teams[teamBId];
 
@@ -59,6 +59,8 @@ export default function AdminDashboard() {
       scoreB: 0,
       period: 1,
       time: '00:00',
+      totalPeriods,
+      periodDurationMinutes,
       events: [],
       rosterA: players.filter(p => p.teamId === teamAId),
       rosterB: players.filter(p => p.teamId === teamBId),
