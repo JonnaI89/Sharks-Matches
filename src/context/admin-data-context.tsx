@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import type { Match, Player, Team } from '@/lib/types';
+import type { Match, Player, Team, MatchEvent } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, doc, setDoc, addDoc, deleteDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -60,12 +60,16 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
     const [matches, setMatches] = useState<Match[]>([]);
     const [teams, setTeams] = useState<Record<string, Team>>({});
     const [players, setPlayers] = useState<Player[]>([]);
-    const [rawMatches, setRawMatches] = useState<any[]>([]); // For raw data from Firestore
-    const [isDataLoaded, setIsDataLoaded] = useState(false);
+    const [rawMatches, setRawMatches] = useState<any[]>([]);
+
+    const [loadingStatus, setLoadingStatus] = useState({
+        teams: true,
+        players: true,
+        matches: true,
+    });
+    const isDataLoaded = !loadingStatus.teams && !loadingStatus.players && !loadingStatus.matches;
 
     useEffect(() => {
-        // This effect sets up real-time listeners for all our data.
-        
         const handleError = (error: Error, type: string) => {
             console.error(`Failed to fetch ${type} from Firestore`, error);
             toast({
@@ -73,6 +77,8 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
                 description: `Could not connect to the database for ${type}.`,
                 variant: "destructive",
             });
+            // Mark as loaded even on error to not block UI forever
+            setLoadingStatus(s => ({ ...s, [type.toLowerCase()]: false }));
         };
 
         const unsubTeams = onSnapshot(collection(db, "teams"), (snapshot) => {
@@ -81,19 +87,18 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
                 teamsData[doc.id] = { id: doc.id, ...doc.data() } as Team;
             });
             setTeams(teamsData);
+            setLoadingStatus(s => ({ ...s, teams: false }));
         }, (err) => handleError(err, "teams"));
 
         const unsubPlayers = onSnapshot(collection(db, "players"), (snapshot) => {
             const playersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Player));
             setPlayers(playersData);
+            setLoadingStatus(s => ({ ...s, players: false }));
         }, (err) => handleError(err, "players"));
 
         const unsubMatches = onSnapshot(collection(db, "matches"), (snapshot) => {
-            // We set the raw, unhydrated data here. This breaks the infinite loop.
-             setRawMatches(snapshot.docs.map(doc => ({
-                 id: doc.id,
-                 ...doc.data()
-             })));
+             setRawMatches(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+             setLoadingStatus(s => ({ ...s, matches: false }));
         }, (err) => handleError(err, "matches"));
 
         return () => {
@@ -103,16 +108,9 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
         };
     }, [toast]);
 
-    // This effect re-hydrates the matches whenever the raw data changes.
-    // It no longer depends on `matches`, so the loop is broken.
     useEffect(() => {
-        // Wait until all data sources are populated to avoid partial hydration
-        if (!rawMatches.length || Object.keys(teams).length === 0) {
-             // If all data is loaded and rawMatches becomes empty, update immediately
-            if (isDataLoaded && rawMatches.length === 0) {
-                 setMatches([]);
-            }
-            return;
+        if (!isDataLoaded) {
+            return; // Don't hydrate until all data sources have reported back
         }
 
         const hydratedMatches = rawMatches.map(match => {
@@ -146,10 +144,6 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
         }).filter((m): m is Match => m !== null);
         
         setMatches(hydratedMatches);
-
-        if(!isDataLoaded) {
-            setIsDataLoaded(true);
-        }
 
     }, [rawMatches, teams, players, isDataLoaded]);
 
