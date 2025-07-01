@@ -11,7 +11,7 @@ import {
   SidebarInset,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { Gamepad2, LayoutDashboard, Settings, Users } from "lucide-react";
+import { LayoutDashboard, Settings, Users } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
@@ -28,10 +28,7 @@ export default function AdminLayout({
           <Sidebar>
             <SidebarContent>
               <SidebarHeader>
-                <Link href="/" className="flex items-center gap-2 text-lg font-bold text-primary">
-                  <Gamepad2 className="h-6 w-6" />
-                  <span className="group-data-[collapsible=icon]:hidden">Sarpsborg IBK Live</span>
-                </Link>
+                
               </SidebarHeader>
               <SidebarMenu>
                 <SidebarMenuItem>

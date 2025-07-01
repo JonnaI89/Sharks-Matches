@@ -1,16 +1,12 @@
 import Link from "next/link";
-import { Gamepad2, UserCog } from "lucide-react";
+import { UserCog } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function Header() {
   return (
     <header className="bg-card border-b sticky top-0 z-50 shadow-sm">
       <div className="container mx-auto px-4">
-        <div className="flex justify-between items-center h-16">
-          <Link href="/" className="flex items-center gap-2 text-xl font-bold text-primary">
-            <Gamepad2 className="h-6 w-6" />
-            <span>Sarpsborg IBK Live</span>
-          </Link>
+        <div className="flex justify-end items-center h-16">
           <nav>
             <Button variant="ghost" asChild>
               <Link href="/admin">
