@@ -315,7 +315,7 @@ export default function AdminMatchPage() {
                 <div className="p-4 border rounded-lg space-y-2">
                     <h3 className="font-medium mb-2">{match.teamA.name}</h3>
                     <div className="flex flex-col sm:flex-row gap-2">
-                        <Button variant="outline" className="w-full" onClick={() => handleAddGoalClick(match.teamA.id)} disabled={isRunning}>
+                        <Button variant="outline" className="w-full" onClick={() => handleAddGoalClick(match.teamA.id)}>
                             <PlusCircle className="mr-2" /> Add Goal
                         </Button>
                         <Button variant="outline" className="w-full" onClick={() => handleRemoveLastGoal(match.teamA.id)} disabled={isRunning}>
@@ -328,7 +328,6 @@ export default function AdminMatchPage() {
                             <Select 
                                 value={match.activeGoalieAId || ""}
                                 onValueChange={(goalieId) => handleGoalieChange(match.teamA.id, goalieId)}
-                                disabled={isRunning}
                             >
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select Goalie" />
@@ -342,7 +341,7 @@ export default function AdminMatchPage() {
                             <Button 
                                 variant="outline"
                                 onClick={() => handleRegisterSave(match.teamA.id)}
-                                disabled={isRunning || !match.activeGoalieAId}
+                                disabled={!match.activeGoalieAId}
                             >
                                 <Hand className="mr-2 h-4 w-4" /> Save
                             </Button>
@@ -352,7 +351,7 @@ export default function AdminMatchPage() {
                  <div className="p-4 border rounded-lg space-y-2">
                     <h3 className="font-medium mb-2">{match.teamB.name}</h3>
                     <div className="flex flex-col sm:flex-row gap-2">
-                        <Button variant="outline" className="w-full" onClick={() => handleAddGoalClick(match.teamB.id)} disabled={isRunning}>
+                        <Button variant="outline" className="w-full" onClick={() => handleAddGoalClick(match.teamB.id)}>
                             <PlusCircle className="mr-2" /> Add Goal
                         </Button>
                         <Button variant="outline" className="w-full" onClick={() => handleRemoveLastGoal(match.teamB.id)} disabled={isRunning}>
@@ -365,7 +364,6 @@ export default function AdminMatchPage() {
                             <Select 
                                 value={match.activeGoalieBId || ""}
                                 onValueChange={(goalieId) => handleGoalieChange(match.teamB.id, goalieId)}
-                                disabled={isRunning}
                             >
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select Goalie" />
@@ -379,7 +377,7 @@ export default function AdminMatchPage() {
                             <Button 
                                 variant="outline"
                                 onClick={() => handleRegisterSave(match.teamB.id)}
-                                disabled={isRunning || !match.activeGoalieBId}
+                                disabled={!match.activeGoalieBId}
                             >
                                 <Hand className="mr-2 h-4 w-4" /> Save
                             </Button>
@@ -398,9 +396,8 @@ export default function AdminMatchPage() {
                         teamBId={match.teamB.id}
                         teamAName={match.teamA.name}
                         teamBName={match.teamB.name}
-                        disabled={isRunning}
                     >
-                        <Button variant="outline" className="w-full" disabled={isRunning}>
+                        <Button variant="outline" className="w-full">
                             <Shield className="mr-2 h-4 w-4" /> Add Penalty
                         </Button>
                     </AddPenaltyDialog>
