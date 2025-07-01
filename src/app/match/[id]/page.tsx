@@ -7,6 +7,7 @@ import { EventTimeline } from "@/components/event-timeline";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LiveMatchWrapper } from "@/components/live-match-wrapper";
 import { Skeleton } from "@/components/ui/skeleton";
+import { RosterTable } from "@/components/roster-table";
 
 export default function MatchPage() {
   const params = useParams<{ id: string }>();
@@ -46,6 +47,10 @@ export default function MatchPage() {
           </CardContent>
         </Card>
         
+        <div className="grid md:grid-cols-2 gap-8">
+            <RosterTable teamName={match.teamA.name} players={match.rosterA} />
+            <RosterTable teamName={match.teamB.name} players={match.rosterB} />
+        </div>
       </main>
     </div>
   );

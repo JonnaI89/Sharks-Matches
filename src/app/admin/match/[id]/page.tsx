@@ -11,11 +11,11 @@ import { PlusCircle, Shield, Play, Pause, Square, MinusCircle, Hand } from "luci
 import { AddGoalDialog } from "@/components/admin/add-goal-dialog";
 import { AddPenaltyDialog } from "@/components/admin/add-penalty-dialog";
 import { AddSaveDialog } from "@/components/admin/add-save-dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { KeyMoments } from "@/components/key-moments";
+import { RosterTable } from "@/components/roster-table";
 
 const timeToSeconds = (time: string) => {
     if (!time) return 0;
@@ -28,38 +28,6 @@ const secondsToTime = (totalSeconds: number) => {
     const seconds = totalSeconds % 60;
     return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 };
-
-function RosterTable({ teamName, players }: { teamName: string; players: Player[] }) {
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle>{teamName}</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>#</TableHead>
-                            <TableHead>Player</TableHead>
-                            <TableHead className="text-center">G</TableHead>
-                            <TableHead className="text-center">A</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {players.map((p) => (
-                            <TableRow key={p.id}>
-                                <TableCell>{p.number}</TableCell>
-                                <TableCell className="font-medium">{p.name}</TableCell>
-                                <TableCell className="text-center">{p.stats.goals}</TableCell>
-                                <TableCell className="text-center">{p.stats.assists}</TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </CardContent>
-        </Card>
-    )
-}
 
 export default function AdminMatchPage() {
   const params = useParams();
