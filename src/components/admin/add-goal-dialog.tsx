@@ -42,11 +42,20 @@ export function AddGoalDialog({ open, onOpenChange, roster, teamId, onAddGoal }:
   const handleSubmit = () => {
     if (teamId && scorerId) {
       const scorer = roster.find(p => p.id === scorerId);
-      const assist = roster.find(p => p.id === assistId);
+      const assist = assistId ? roster.find(p => p.id === assistId) : undefined;
       if (scorer) {
         onAddGoal(teamId, scorer, assist);
         onOpenChange(false);
       }
+    }
+  };
+  
+  const handleAssistChange = (value: string) => {
+    // The "none" value is used to reset the assist selection
+    if (value === "none") {
+      setAssistId(undefined);
+    } else {
+      setAssistId(value);
     }
   };
 
@@ -67,8 +76,8 @@ export function AddGoalDialog({ open, onOpenChange, roster, teamId, onAddGoal }:
                 <SelectValue placeholder="Select a player" />
               </SelectTrigger>
               <SelectContent>
-                {roster.map(player => (
-                  <SelectItem key={player.id} value={player.id} disabled={player.isGoalie}>
+                {roster.filter(p => !p.isGoalie).map(player => (
+                  <SelectItem key={player.id} value={player.id}>
                     #{player.number} {player.name}
                   </SelectItem>
                 ))}
@@ -77,11 +86,12 @@ export function AddGoalDialog({ open, onOpenChange, roster, teamId, onAddGoal }:
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="assist" className="text-right">Assist</Label>
-            <Select onValueChange={setAssistId} value={assistId} disabled={!scorerId}>
+            <Select onValueChange={handleAssistChange} value={assistId} disabled={!scorerId}>
               <SelectTrigger className="col-span-3">
                 <SelectValue placeholder="Select a player (optional)" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="none">No assist</SelectItem>
                 {roster.filter(p => p.id !== scorerId && !p.isGoalie).map(player => (
                   <SelectItem key={player.id} value={player.id}>
                     #{player.number} {player.name}
