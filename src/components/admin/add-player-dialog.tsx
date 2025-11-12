@@ -28,7 +28,7 @@ interface AddPlayerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   teamId: string | null;
-  onAddPlayer: (teamId: string, newPlayer: Omit<Player, 'id' | 'teamId' | 'stats'>) => void;
+  onAddPlayer: (teamId: string | null, newPlayer: Omit<Player, 'id' | 'teamId' | 'stats'>) => void;
 }
 
 export function AddPlayerDialog({ open, onOpenChange, teamId, onAddPlayer }: AddPlayerDialogProps) {
@@ -48,10 +48,8 @@ export function AddPlayerDialog({ open, onOpenChange, teamId, onAddPlayer }: Add
   }, [open, form]);
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
-    if (teamId) {
-      onAddPlayer(teamId, values);
-      onOpenChange(false);
-    }
+    onAddPlayer(teamId, values);
+    onOpenChange(false);
   };
 
   return (

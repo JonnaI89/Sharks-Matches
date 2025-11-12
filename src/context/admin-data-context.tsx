@@ -18,8 +18,9 @@ interface AdminDataContextType {
     addTeam: (team: Omit<Team, 'id'>) => Promise<void>;
     updateTeam: (teamId: string, teamData: Omit<Team, 'id'>) => Promise<void>;
     deleteTeam: (teamId: string) => Promise<void>;
-    addPlayer: (teamId: string, player: Omit<Player, 'id' | 'teamId' | 'stats'>) => Promise<void>;
+    addPlayer: (teamId: string | null, player: Omit<Player, 'id' | 'teamId' | 'stats'>) => Promise<void>;
     deletePlayer: (playerId: string) => Promise<void>;
+    updatePlayer: (playerId: string, playerData: Partial<Omit<Player, 'id'>>) => Promise<void>;
     addTournament: (name: string) => Promise<void>;
     deleteTournament: (tournamentId: string) => Promise<void>;
     updateTournament: (tournament: Tournament) => Promise<void>;
@@ -287,7 +288,7 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
         }
     }, [matches, players, toast]);
 
-    const addPlayer = useCallback(async (teamId: string, newPlayer: Omit<Player, 'id' | 'teamId' | 'stats'>) => {
+    const addPlayer = useCallback(async (teamId: string | null, newPlayer: Omit<Player, 'id' | 'teamId' | 'stats'>) => {
         const playerToAdd = {
             ...newPlayer,
             teamId: teamId,
@@ -307,6 +308,20 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
             console.error("Error deleting player: ", e);
         }
     }, []);
+
+    const updatePlayer = useCallback(async (playerId: string, playerData: Partial<Omit<Player, 'id'>>) => {
+        try {
+            const playerDocRef = doc(db, "players", playerId);
+            await setDoc(playerDocRef, playerData, { merge: true });
+        } catch (error) {
+            console.error("Error updating player: ", error);
+            toast({
+                title: "Error",
+                description: "Could not update player information.",
+                variant: "destructive",
+            });
+        }
+    }, [toast]);
 
     const addTournament = useCallback(async (name: string) => {
         try {
@@ -357,7 +372,7 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
         players,
         tournaments,
         isDataLoaded,
-        addMatch, updateMatch, deleteMatch, addTeam, updateTeam, deleteTeam, addPlayer, deletePlayer,
+        addMatch, updateMatch, deleteMatch, addTeam, updateTeam, deleteTeam, addPlayer, deletePlayer, updatePlayer,
         addTournament, deleteTournament, updateTournament,
     };
 
