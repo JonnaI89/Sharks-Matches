@@ -24,7 +24,7 @@ export default function TournamentDetailPage() {
   const tournament = tournaments.find(t => t.id === params.id);
 
   const [newGroupName, setNewGroupName] = useState("");
-  const [selectedTeamId, setSelectedTeamId] = useState("");
+  const [selectedTeamIds, setSelectedTeamIds] = useState<Record<string, string>>({});
 
   const teamsArray = useMemo(() => Object.values(teams), [teams]);
 
@@ -53,6 +53,7 @@ export default function TournamentDetailPage() {
   };
 
   const handleAddTeamToGroup = async (groupId: string) => {
+    const selectedTeamId = selectedTeamIds[groupId];
     if (!tournament || !selectedTeamId) return;
     const updatedGroups = tournament.groups.map(g => {
       if (g.id === groupId) {
@@ -62,7 +63,7 @@ export default function TournamentDetailPage() {
       return g;
     });
     await updateTournament({ ...tournament, groups: updatedGroups });
-    setSelectedTeamId("");
+    setSelectedTeamIds(prev => ({...prev, [groupId]: ""}));
   };
 
   const handleRemoveTeamFromGroup = async (groupId: string, teamIdToRemove: string) => {
@@ -74,6 +75,10 @@ export default function TournamentDetailPage() {
       return g;
     });
     await updateTournament({ ...tournament, groups: updatedGroups });
+  };
+
+  const handleSelectedTeamChange = (groupId: string, teamId: string) => {
+    setSelectedTeamIds(prev => ({...prev, [groupId]: teamId}));
   };
 
   const getTeamName = (teamId: string) => teams[teamId]?.name || 'Unknown Team';
@@ -145,7 +150,10 @@ export default function TournamentDetailPage() {
                 )}
               </ul>
               <div className="flex gap-2">
-                <Select onValueChange={setSelectedTeamId} value={selectedTeamId}>
+                <Select 
+                  onValueChange={(teamId) => handleSelectedTeamChange(group.id, teamId)} 
+                  value={selectedTeamIds[group.id] || ""}
+                >
                   <SelectTrigger><SelectValue placeholder="Add a team..." /></SelectTrigger>
                   <SelectContent>
                     {unassignedTeams.map(team => (
@@ -153,7 +161,7 @@ export default function TournamentDetailPage() {
                     ))}
                   </SelectContent>
                 </Select>
-                <Button onClick={() => handleAddTeamToGroup(group.id)} disabled={!selectedTeamId}>Add</Button>
+                <Button onClick={() => handleAddTeamToGroup(group.id)} disabled={!selectedTeamIds[group.id]}>Add</Button>
               </div>
             </CardContent>
           </Card>
