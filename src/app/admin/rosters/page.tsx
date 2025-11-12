@@ -5,7 +5,7 @@ import { useAdminData } from "@/context/admin-data-context";
 import type { Player, Team } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Trash2, Edit, UserPlus, UserMinus, Users } from "lucide-react";
+import { PlusCircle, Trash2, Edit, UserPlus, UserMinus, Users, ChevronDown } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { AddPlayerDialog } from "@/components/admin/add-player-dialog";
@@ -23,6 +23,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { cn } from "@/lib/utils";
+
 
 export default function RosterManagementPage() {
   const { players, teams, addPlayer, deletePlayer, updatePlayer, addTeam, deleteTeam, updateTeam } = useAdminData();
@@ -32,6 +35,7 @@ export default function RosterManagementPage() {
   const [isAssignPlayerDialogOpen, setIsAssignPlayerDialogOpen] = useState(false);
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [teamToEdit, setTeamToEdit] = useState<Team | null>(null);
+  const [isPlayerBankOpen, setIsPlayerBankOpen] = useState(true);
 
   const unassignedPlayers = useMemo(() => players.filter(p => !p.teamId), [players]);
 
@@ -90,72 +94,81 @@ export default function RosterManagementPage() {
         </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users /> Player Bank
-          </CardTitle>
-          <CardDescription>Players who are not currently assigned to a team. Add new players here or assign them to a team.</CardDescription>
-        </CardHeader>
-        <CardContent>
-           <Button size="sm" onClick={() => handleAddPlayerClick(null)} className="mb-4">
-              <PlusCircle className="mr-2 h-4 w-4" /> Add New Player to Bank
-            </Button>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>#</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Position</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {unassignedPlayers.length > 0 ? (
-                unassignedPlayers.map(player => (
-                  <TableRow key={player.id}>
-                    <TableCell>{player.number}</TableCell>
-                    <TableCell className="font-medium">{player.name}</TableCell>
-                    <TableCell>
-                      {player.isGoalie && <Badge variant="outline">Goalie</Badge>}
-                    </TableCell>
-                    <TableCell className="text-right">
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <Trash2 className="h-4 w-4" />
-                              <span className="sr-only">Remove Player</span>
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This will permanently delete {player.name} from the player bank.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleRemovePlayer(player.id)}>
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                    </TableCell>
+      <Collapsible open={isPlayerBankOpen} onOpenChange={setIsPlayerBankOpen}>
+        <Card>
+          <CardHeader>
+            <CollapsibleTrigger className="flex items-center justify-between w-full">
+              <div className='text-left'>
+                <CardTitle className="flex items-center gap-2">
+                  <Users /> Player Bank
+                </CardTitle>
+                <CardDescription>Players who are not currently assigned to a team. Add new players here or assign them to a team.</CardDescription>
+              </div>
+              <ChevronDown className={cn("h-6 w-6 transform transition-transform", isPlayerBankOpen && "rotate-180")} />
+            </CollapsibleTrigger>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent>
+              <Button size="sm" onClick={() => handleAddPlayerClick(null)} className="mb-4">
+                  <PlusCircle className="mr-2 h-4 w-4" /> Add New Player to Bank
+                </Button>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>#</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Position</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))
-              ) : (
-                 <TableRow>
-                  <TableCell colSpan={4} className="text-center text-muted-foreground h-24">
-                    Player bank is empty.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {unassignedPlayers.length > 0 ? (
+                    unassignedPlayers.map(player => (
+                      <TableRow key={player.id}>
+                        <TableCell>{player.number}</TableCell>
+                        <TableCell className="font-medium">{player.name}</TableCell>
+                        <TableCell>
+                          {player.isGoalie && <Badge variant="outline">Goalie</Badge>}
+                        </TableCell>
+                        <TableCell className="text-right">
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <Trash2 className="h-4 w-4" />
+                                  <span className="sr-only">Remove Player</span>
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    This will permanently delete {player.name} from the player bank.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleRemovePlayer(player.id)}>
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center text-muted-foreground h-24">
+                        Player bank is empty.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
 
       <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
