@@ -35,7 +35,7 @@ export default function RosterManagementPage() {
   const [isAssignPlayerDialogOpen, setIsAssignPlayerDialogOpen] = useState(false);
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [teamToEdit, setTeamToEdit] = useState<Team | null>(null);
-  const [isPlayerBankOpen, setIsPlayerBankOpen] = useState(true);
+  const [isPlayerBankOpen, setIsPlayerBankOpen] = useState(false);
 
   const unassignedPlayers = useMemo(() => players.filter(p => !p.teamId), [players]);
 
