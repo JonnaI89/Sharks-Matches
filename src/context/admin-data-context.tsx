@@ -1,17 +1,18 @@
 "use client";
 
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
-import type { Match, Player, Team, MatchEvent, SaveEvent, GoalEvent } from '@/lib/types';
+import type { Match, Player, Team, MatchEvent, SaveEvent, GoalEvent, Tournament, TournamentGroup } from '@/lib/types';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, doc, setDoc, addDoc, deleteDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, addDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
 interface AdminDataContextType {
     matches: Match[];
     teams: Record<string, Team>;
     players: Player[];
+    tournaments: Tournament[];
     isDataLoaded: boolean;
-    addMatch: (teamAId: string, teamBId: string, totalPeriods: number, periodDurationMinutes: number, breakDurationMinutes: number, goalieAId: string | null, goalieBId: string | null) => Promise<void>;
+    addMatch: (matchData: Omit<Match, 'id' | 'teamA' | 'teamB' | 'rosterA' | 'rosterB' | 'events' | 'status' | 'scoreA' | 'scoreB' | 'period' | 'time' | 'breakEndTime'> & { teamAId: string, teamBId: string }) => Promise<void>;
     updateMatch: (match: Match) => Promise<void>;
     deleteMatch: (matchId: string) => Promise<void>;
     addTeam: (team: Omit<Team, 'id'>) => Promise<void>;
@@ -19,6 +20,9 @@ interface AdminDataContextType {
     deleteTeam: (teamId: string) => Promise<void>;
     addPlayer: (teamId: string, player: Omit<Player, 'id' | 'teamId' | 'stats'>) => Promise<void>;
     deletePlayer: (playerId: string) => Promise<void>;
+    addTournament: (name: string) => Promise<void>;
+    deleteTournament: (tournamentId: string) => Promise<void>;
+    updateTournament: (tournament: Tournament) => Promise<void>;
 }
 
 const AdminDataContext = createContext<AdminDataContextType | undefined>(undefined);
@@ -56,6 +60,7 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
     const [matches, setMatches] = useState<Match[]>([]);
     const [teams, setTeams] = useState<Record<string, Team>>({});
     const [players, setPlayers] = useState<Player[]>([]);
+    const [tournaments, setTournaments] = useState<Tournament[]>([]);
     const [isDataLoaded, setIsDataLoaded] = useState(false);
     const [rawMatches, setRawMatches] = useState<any[] | null>(null);
 
@@ -63,8 +68,9 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
         teams: true,
         players: true,
         matches: true,
+        tournaments: true,
     });
-    const isRawDataLoaded = !loadingStatus.teams && !loadingStatus.players && !loadingStatus.matches;
+    const isRawDataLoaded = !loadingStatus.teams && !loadingStatus.players && !loadingStatus.matches && !loadingStatus.tournaments;
 
     useEffect(() => {
         const handleError = (error: Error, type: string) => {
@@ -97,10 +103,17 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
              setLoadingStatus(s => ({ ...s, matches: false }));
         }, (err) => handleError(err, "matches"));
 
+        const unsubTournaments = onSnapshot(collection(db, "tournaments"), (snapshot) => {
+            const tourneyData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Tournament));
+            setTournaments(tourneyData);
+            setLoadingStatus(s => ({...s, tournaments: false}));
+        }, (err) => handleError(err, "tournaments"));
+
         return () => {
             unsubTeams();
             unsubPlayers();
             unsubMatches();
+            unsubTournaments();
         };
     }, [toast]);
 
@@ -196,18 +209,18 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
 
     }, [rawMatches, teams, players, isRawDataLoaded]);
 
-    const addMatch = useCallback(async (teamAId: string, teamBId: string, totalPeriods: number, periodDurationMinutes: number, breakDurationMinutes: number, goalieAId: string | null, goalieBId: string | null) => {
+    const addMatch = useCallback(async (matchData: Omit<Match, 'id' | 'teamA' | 'teamB' | 'rosterA' | 'rosterB' | 'events' | 'status' | 'scoreA' | 'scoreB' | 'period' | 'time' | 'breakEndTime'> & { teamAId: string, teamBId: string }) => {
+        const { teamAId, teamBId, ...rest } = matchData;
         const teamA = teams[teamAId];
         const teamB = teams[teamBId];
         if (!teamA || !teamB) return;
 
         const newMatchData: Omit<Match, 'id'> = {
+            ...rest,
             status: 'upcoming', teamA, teamB, scoreA: 0, scoreB: 0, period: 1,
-            time: '00:00', totalPeriods, periodDurationMinutes, breakDurationMinutes, breakEndTime: null, events: [],
+            time: '00:00', breakEndTime: null, events: [],
             rosterA: players.filter(p => p.teamId === teamAId),
             rosterB: players.filter(p => p.teamId === teamBId),
-            activeGoalieAId: goalieAId,
-            activeGoalieBId: goalieBId,
         };
         
         try {
@@ -295,12 +308,57 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
         }
     }, []);
 
+    const addTournament = useCallback(async (name: string) => {
+        try {
+            await addDoc(collection(db, "tournaments"), { name, groups: [] });
+        } catch (error) {
+            console.error("Error adding tournament: ", error);
+        }
+    }, []);
+
+    const deleteTournament = useCallback(async (tournamentId: string) => {
+        try {
+            const batch = writeBatch(db);
+            // Delete the tournament document
+            const tournamentDocRef = doc(db, "tournaments", tournamentId);
+            batch.delete(tournamentDocRef);
+            
+            // Find and delete associated matches
+            const associatedMatches = matches.filter(m => m.tournamentId === tournamentId);
+            associatedMatches.forEach(match => {
+                const matchDocRef = doc(db, "matches", match.id);
+                batch.delete(matchDocRef);
+            });
+
+            await batch.commit();
+
+        } catch (error) {
+            console.error("Error deleting tournament: ", error);
+            toast({
+                title: "Error",
+                description: "Could not delete tournament and its matches.",
+                variant: "destructive"
+            });
+        }
+    }, [matches, toast]);
+
+    const updateTournament = useCallback(async (tournament: Tournament) => {
+        try {
+            const { id, ...tournamentData } = tournament;
+            await setDoc(doc(db, "tournaments", id), tournamentData);
+        } catch (error) {
+            console.error("Error updating tournament: ", error);
+        }
+    }, []);
+
     const value = {
         matches: matches || [],
         teams, 
-        players, 
+        players,
+        tournaments,
         isDataLoaded,
         addMatch, updateMatch, deleteMatch, addTeam, updateTeam, deleteTeam, addPlayer, deletePlayer,
+        addTournament, deleteTournament, updateTournament,
     };
 
     return (

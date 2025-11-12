@@ -74,4 +74,32 @@ export interface Match {
   rosterB: Player[];
   activeGoalieAId: string | null;
   activeGoalieBId: string | null;
+  tournamentId?: string;
+  groupId?: string;
+}
+
+export interface TournamentGroup {
+    id: string;
+    name: string;
+    teams: string[]; // array of team IDs
+}
+
+export interface Tournament {
+    id: string;
+    name: string;
+    groups: TournamentGroup[];
+}
+
+export interface Standing {
+  teamId: string;
+  teamName: string;
+  teamLogo: string;
+  played: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  goalDifference: number;
+  points: number;
 }

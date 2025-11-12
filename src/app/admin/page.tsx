@@ -28,9 +28,10 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { CreateMatchDialog } from "@/components/admin/create-match-dialog";
+import type { Match } from "@/lib/types";
 
 export default function AdminDashboard() {
-  const { matches, teams, players, addMatch, deleteMatch } = useAdminData();
+  const { matches, teams, players, addMatch, deleteMatch, tournaments } = useAdminData();
   const [isCreateMatchDialogOpen, setIsCreateMatchDialogOpen] = useState(false);
 
   const statusColors: Record<string, string> = {
@@ -45,8 +46,8 @@ export default function AdminDashboard() {
     await deleteMatch(id);
   };
 
-  const handleAddMatch = async (teamAId: string, teamBId: string, totalPeriods: number, periodDurationMinutes: number, breakDurationMinutes: number, goalieAId: string | null, goalieBId: string | null) => {
-    await addMatch(teamAId, teamBId, totalPeriods, periodDurationMinutes, breakDurationMinutes, goalieAId, goalieBId);
+  const handleAddMatch = async (data: Omit<Match, 'id' | 'teamA' | 'teamB' | 'rosterA' | 'rosterB' | 'events' | 'status' | 'scoreA' | 'scoreB' | 'period' | 'time' | 'breakEndTime'> & { teamAId: string, teamBId: string }) => {
+    await addMatch(data);
   };
 
   return (
@@ -69,16 +70,20 @@ export default function AdminDashboard() {
             <TableHeader>
               <TableRow>
                 <TableHead>Match</TableHead>
+                <TableHead>Tournament</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {matches.map((match) => (
+              {matches.map((match) => {
+                const tournament = tournaments.find(t => t.id === match.tournamentId);
+                return (
                 <TableRow key={match.id}>
                   <TableCell className="font-medium">
                     {match.teamA.name} vs {match.teamB.name}
                   </TableCell>
+                  <TableCell>{tournament?.name || "Standalone"}</TableCell>
                   <TableCell>
                     <Badge className={cn("text-xs font-bold uppercase", statusColors[match.status])}>
                       {match.status}
@@ -115,7 +120,7 @@ export default function AdminDashboard() {
                     </AlertDialog>
                   </TableCell>
                 </TableRow>
-              ))}
+              )})}
             </TableBody>
           </Table>
         </CardContent>
@@ -125,6 +130,7 @@ export default function AdminDashboard() {
         onOpenChange={setIsCreateMatchDialogOpen}
         teams={Object.values(teams)}
         players={players}
+        tournaments={tournaments}
         onAddMatch={handleAddMatch}
       />
     </>

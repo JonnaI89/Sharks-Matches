@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import type { Player, Team } from "@/lib/types";
+import type { Player, Team, Tournament } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -26,18 +26,33 @@ interface CreateMatchDialogProps {
   onOpenChange: (open: boolean) => void;
   teams: Team[];
   players: Player[];
-  onAddMatch: (teamAId: string, teamBId: string, totalPeriods: number, periodDurationMinutes: number, breakDurationMinutes: number, goalieAId: string | null, goalieBId: string | null) => void;
+  tournaments: Tournament[];
+  onAddMatch: (data: {
+    teamAId: string;
+    teamBId: string;
+    totalPeriods: number;
+    periodDurationMinutes: number;
+    breakDurationMinutes: number;
+    goalieAId: string | null;
+    goalieBId: string | null;
+    tournamentId?: string;
+    groupId?: string;
+  }) => void;
 }
 
-export function CreateMatchDialog({ open, onOpenChange, teams, players, onAddMatch }: CreateMatchDialogProps) {
+export function CreateMatchDialog({ open, onOpenChange, teams, players, tournaments, onAddMatch }: CreateMatchDialogProps) {
   const [teamAId, setTeamAId] = useState<string | undefined>();
   const [teamBId, setTeamBId] = useState<string | undefined>();
   const [goalieAId, setGoalieAId] = useState<string | undefined>();
   const [goalieBId, setGoalieBId] = useState<string | undefined>();
+  const [tournamentId, setTournamentId] = useState<string | undefined>();
+  const [groupId, setGroupId] = useState<string | undefined>();
   const [totalPeriods, setTotalPeriods] = useState<string>("3");
   const [periodDuration, setPeriodDuration] = useState<string>("20");
   const [breakDuration, setBreakDuration] = useState<string>("15");
   const [error, setError] = useState<string | null>(null);
+
+  const selectedTournament = tournaments.find(t => t.id === tournamentId);
 
   useEffect(() => {
     if (!open) {
@@ -46,11 +61,26 @@ export function CreateMatchDialog({ open, onOpenChange, teams, players, onAddMat
       setTeamBId(undefined);
       setGoalieAId(undefined);
       setGoalieBId(undefined);
+      setTournamentId(undefined);
+      setGroupId(undefined);
       setTotalPeriods("3");
       setPeriodDuration("20");
       setBreakDuration("15");
     }
   }, [open]);
+
+  useEffect(() => {
+    // If teams are not in the selected group, reset them
+    if (selectedTournament && groupId) {
+        const group = selectedTournament.groups.find(g => g.id === groupId);
+        if (group) {
+            if (teamAId && !group.teams.includes(teamAId)) setTeamAId(undefined);
+            if (teamBId && !group.teams.includes(teamBId)) setTeamBId(undefined);
+        } else {
+            setGroupId(undefined);
+        }
+    }
+  }, [groupId, selectedTournament, teamAId, teamBId]);
 
   const handleSubmit = () => {
     setError(null);
@@ -79,16 +109,29 @@ export function CreateMatchDialog({ open, onOpenChange, teams, players, onAddMat
       return;
     }
 
-    onAddMatch(teamAId, teamBId, periods, duration, breakDur, goalieAId || null, goalieBId || null);
+    onAddMatch({
+        teamAId, teamBId, 
+        totalPeriods: periods, periodDurationMinutes: duration, breakDurationMinutes: breakDur, 
+        goalieAId: goalieAId || null, goalieBId: goalieBId || null,
+        tournamentId, groupId
+    });
     onOpenChange(false);
   };
 
   const teamAGoalies = teamAId ? players.filter(p => p.teamId === teamAId && p.isGoalie) : [];
   const teamBGoalies = teamBId ? players.filter(p => p.teamId === teamBId && p.isGoalie) : [];
+  
+  let availableTeams = teams;
+  if(selectedTournament && groupId) {
+    const group = selectedTournament.groups.find(g => g.id === groupId);
+    if (group) {
+      availableTeams = teams.filter(t => group.teams.includes(t.id));
+    }
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Create New Match</DialogTitle>
           <DialogDescription>
@@ -97,13 +140,46 @@ export function CreateMatchDialog({ open, onOpenChange, teams, players, onAddMat
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="tournament" className="text-right">Tournament</Label>
+            <Select onValueChange={(val) => { setTournamentId(val); setGroupId(undefined); setTeamAId(undefined); setTeamBId(undefined); }} value={tournamentId}>
+              <SelectTrigger className="col-span-3">
+                <SelectValue placeholder="Select a tournament (optional)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No Tournament</SelectItem>
+                {tournaments.map(tourn => (
+                  <SelectItem key={tourn.id} value={tourn.id}>
+                    {tourn.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {tournamentId && tournamentId !== 'none' && (
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="group" className="text-right">Group</Label>
+              <Select onValueChange={(val) => { setGroupId(val); setTeamAId(undefined); setTeamBId(undefined); }} value={groupId} disabled={!selectedTournament}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select a group" />
+                </SelectTrigger>
+                <SelectContent>
+                  {selectedTournament?.groups.map(group => (
+                    <SelectItem key={group.id} value={group.id}>
+                      {group.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="teamA" className="text-right">Home Team</Label>
             <Select onValueChange={(val) => { setTeamAId(val); setGoalieAId(undefined); }} value={teamAId}>
               <SelectTrigger className="col-span-3">
                 <SelectValue placeholder="Select a team" />
               </SelectTrigger>
               <SelectContent>
-                {teams.filter(t => t.id !== teamBId).map(team => (
+                {availableTeams.filter(t => t.id !== teamBId).map(team => (
                   <SelectItem key={team.id} value={team.id}>
                     {team.name}
                   </SelectItem>
@@ -118,7 +194,7 @@ export function CreateMatchDialog({ open, onOpenChange, teams, players, onAddMat
                 <SelectValue placeholder="Select a team" />
               </SelectTrigger>
               <SelectContent>
-                {teams.filter(t => t.id !== teamAId).map(team => (
+                {availableTeams.filter(t => t.id !== teamAId).map(team => (
                   <SelectItem key={team.id} value={team.id}>
                     {team.name}
                   </SelectItem>

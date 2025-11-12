@@ -11,7 +11,7 @@ import {
   SidebarInset,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, Settings, Users, LogOut } from "lucide-react";
+import { LayoutDashboard, Settings, Users, LogOut, Trophy } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { AuthGuard } from "@/components/auth-guard";
@@ -50,6 +50,18 @@ export default function AdminLayout({
                     <Link href="/admin">
                       <LayoutDashboard />
                       <span>Dashboard</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                 <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname.startsWith("/admin/tournaments")}
+                    tooltip={{ children: "Tournaments" }}
+                  >
+                    <Link href="/admin/tournaments">
+                      <Trophy />
+                      <span>Tournaments</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
