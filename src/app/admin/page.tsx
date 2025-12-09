@@ -46,7 +46,7 @@ export default function AdminDashboard() {
     await deleteMatch(id);
   };
 
-  const handleAddMatch = async (data: Omit<Match, 'id' | 'teamA' | 'teamB' | 'rosterA' | 'rosterB' | 'events' | 'status' | 'scoreA' | 'scoreB' | 'period' | 'time' | 'breakEndTime'> & { teamAId: string, teamBId: string }) => {
+  const handleAddMatch = async (data: Omit<Match, 'id' | 'teamA' | 'teamB' | 'rosterA' | 'rosterB' | 'events' | 'status' | 'scoreA' | 'scoreB' | 'period' | 'time' | 'breakEndTime' | 'date'> & { teamAId: string, teamBId: string }) => {
     await addMatch(data);
   };
 

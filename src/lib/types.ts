@@ -76,6 +76,7 @@ export interface Match {
   activeGoalieBId: string | null;
   tournamentId?: string;
   groupId?: string;
+  date?: string; // Optional match date
 }
 
 export interface TournamentGroup {

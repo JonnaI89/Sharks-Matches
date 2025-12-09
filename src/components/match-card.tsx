@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 
 interface TeamLogoProps {
   logo: string;
@@ -49,6 +50,9 @@ export function MatchCard({ match }: MatchCardProps) {
       return 'Finished';
     }
     if (match.status === 'upcoming') {
+        if (match.date) {
+            return format(new Date(match.date), "PPP");
+        }
         return 'Upcoming';
     }
     return `Period ${match.period} - ${match.time}`;

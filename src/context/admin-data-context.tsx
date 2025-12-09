@@ -12,7 +12,7 @@ interface AdminDataContextType {
     players: Player[];
     tournaments: Tournament[];
     isDataLoaded: boolean;
-    addMatch: (matchData: Omit<Match, 'id' | 'teamA' | 'teamB' | 'rosterA' | 'rosterB' | 'events' | 'status' | 'scoreA' | 'scoreB' | 'period' | 'time' | 'breakEndTime'> & { teamAId: string, teamBId: string }) => Promise<void>;
+    addMatch: (matchData: Omit<Match, 'id' | 'teamA' | 'teamB' | 'rosterA' | 'rosterB' | 'events' | 'status' | 'scoreA' | 'scoreB' | 'period' | 'time' | 'breakEndTime' | 'date'> & { teamAId: string, teamBId: string, date?: string }) => Promise<void>;
     updateMatch: (match: Match) => Promise<void>;
     deleteMatch: (matchId: string) => Promise<void>;
     addTeam: (team: Omit<Team, 'id'>) => Promise<void>;
@@ -210,7 +210,7 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
 
     }, [rawMatches, teams, players, isRawDataLoaded]);
 
-    const addMatch = useCallback(async (matchData: Omit<Match, 'id' | 'teamA' | 'teamB' | 'rosterA' | 'rosterB' | 'events' | 'status' | 'scoreA' | 'scoreB' | 'period' | 'time' | 'breakEndTime'> & { teamAId: string, teamBId: string }) => {
+    const addMatch = useCallback(async (matchData: Omit<Match, 'id' | 'teamA' | 'teamB' | 'rosterA' | 'rosterB' | 'events' | 'status' | 'scoreA' | 'scoreB' | 'period' | 'time' | 'breakEndTime' | 'date'> & { teamAId: string, teamBId: string, date?: string }) => {
         const { teamAId, teamBId, ...rest } = matchData;
         const teamA = teams[teamAId];
         const teamB = teams[teamBId];
@@ -222,6 +222,7 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
             time: '00:00', breakEndTime: null, events: [],
             rosterA: players.filter(p => p.teamId === teamAId),
             rosterB: players.filter(p => p.teamId === teamBId),
+            date: matchData.date,
         };
         
         try {

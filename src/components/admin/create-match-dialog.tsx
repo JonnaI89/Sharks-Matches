@@ -20,6 +20,11 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Input } from "../ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface CreateMatchDialogProps {
   open: boolean;
@@ -37,6 +42,7 @@ interface CreateMatchDialogProps {
     goalieBId: string | null;
     tournamentId?: string;
     groupId?: string;
+    date?: string;
   }) => void;
 }
 
@@ -50,6 +56,7 @@ export function CreateMatchDialog({ open, onOpenChange, teams, players, tourname
   const [totalPeriods, setTotalPeriods] = useState<string>("3");
   const [periodDuration, setPeriodDuration] = useState<string>("20");
   const [breakDuration, setBreakDuration] = useState<string>("15");
+  const [date, setDate] = useState<Date | undefined>();
   const [error, setError] = useState<string | null>(null);
 
   const selectedTournament = tournaments.find(t => t.id === tournamentId);
@@ -66,6 +73,7 @@ export function CreateMatchDialog({ open, onOpenChange, teams, players, tourname
       setTotalPeriods("3");
       setPeriodDuration("20");
       setBreakDuration("15");
+      setDate(undefined);
     }
   }, [open]);
 
@@ -113,7 +121,8 @@ export function CreateMatchDialog({ open, onOpenChange, teams, players, tourname
         teamAId, teamBId, 
         totalPeriods: periods, periodDurationMinutes: duration, breakDurationMinutes: breakDur, 
         goalieAId: goalieAId || null, goalieBId: goalieBId || null,
-        tournamentId, groupId
+        tournamentId, groupId,
+        date: date ? date.toISOString() : undefined,
     });
     onOpenChange(false);
   };
@@ -139,6 +148,31 @@ export function CreateMatchDialog({ open, onOpenChange, teams, players, tourname
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label className="text-right">Date</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={"outline"}
+                  className={cn(
+                    "col-span-3 justify-start text-left font-normal",
+                    !date && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {date ? format(date, "PPP") : <span>Pick a date</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <Calendar
+                  mode="single"
+                  selected={date}
+                  onSelect={setDate}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="tournament" className="text-right">Tournament</Label>
             <Select onValueChange={(val) => { setTournamentId(val); setGroupId(undefined); setTeamAId(undefined); setTeamBId(undefined); }} value={tournamentId}>
