@@ -1,3 +1,4 @@
+
 "use client";
 
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
@@ -33,9 +34,6 @@ const sanitizeMatchForFirebase = (match: Match | Omit<Match, 'id'>) => {
     
     sanitizedMatch.teamA = { id: match.teamA.id };
     sanitizedMatch.teamB = { id: match.teamB.id };
-
-    delete sanitizedMatch.rosterA;
-    delete sanitizedMatch.rosterB;
 
     sanitizedMatch.events = match.events.map(event => {
         const newEvent = { ...event };
