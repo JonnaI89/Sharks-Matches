@@ -3,7 +3,6 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
 
 interface TeamLogoProps {
   logo: string;
@@ -42,6 +41,20 @@ export function MatchCard({ match }: MatchCardProps) {
     paused: "bg-blue-500 text-white",
     break: "bg-orange-500 text-white",
   };
+  
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return 'Upcoming';
+    try {
+      // Use toLocaleDateString for a more user-friendly format
+      return new Date(dateString).toLocaleDateString(undefined, {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+    } catch (e) {
+      return 'Upcoming';
+    }
+  };
 
   const getCardTitle = () => {
     if (match.status === 'break') {
@@ -51,10 +64,7 @@ export function MatchCard({ match }: MatchCardProps) {
       return 'Finished';
     }
     if (match.status === 'upcoming') {
-        if (match.date) {
-            return format(new Date(match.date), "PPP");
-        }
-        return 'Upcoming';
+        return formatDate(match.date);
     }
     return `Period ${match.period} - ${match.time}`;
   };
