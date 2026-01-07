@@ -128,7 +128,7 @@ export default function AdminMatchPage() {
 
     const newGoalEvent: GoalEvent = {
         id: `e${newMatch.events.length + 1}`, type: 'goal', teamId, scorer, assist, time: newMatch.time, period: newMatch.period,
-        concedingGoalieId: concedingGoalieId || undefined,
+        concedingGoalieId: concedingGoalieId || null,
     };
     newMatch.events.push(newGoalEvent);
 
