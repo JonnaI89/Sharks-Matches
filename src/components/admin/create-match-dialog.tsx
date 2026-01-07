@@ -10,6 +10,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -27,8 +28,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
 interface CreateMatchDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  children: React.ReactNode;
   teams: Team[];
   players: Player[];
   tournaments: Tournament[];
@@ -46,7 +46,8 @@ interface CreateMatchDialogProps {
   }) => void;
 }
 
-export function CreateMatchDialog({ open, onOpenChange, teams, players, tournaments, onAddMatch }: CreateMatchDialogProps) {
+export function CreateMatchDialog({ children, teams, players, tournaments, onAddMatch }: CreateMatchDialogProps) {
+  const [open, setOpen] = useState(false);
   const [teamAId, setTeamAId] = useState<string | undefined>();
   const [teamBId, setTeamBId] = useState<string | undefined>();
   const [goalieAId, setGoalieAId] = useState<string | undefined>();
@@ -124,7 +125,7 @@ export function CreateMatchDialog({ open, onOpenChange, teams, players, tourname
         tournamentId, groupId,
         date: date ? date.toISOString() : undefined,
     });
-    onOpenChange(false);
+    setOpen(false);
   };
 
   const teamAGoalies = teamAId ? players.filter(p => p.teamId === teamAId && p.isGoalie) : [];
@@ -139,7 +140,10 @@ export function CreateMatchDialog({ open, onOpenChange, teams, players, tourname
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        {children}
+      </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Create New Match</DialogTitle>
@@ -302,7 +306,7 @@ export function CreateMatchDialog({ open, onOpenChange, teams, players, tourname
           {error && <p className="col-span-4 text-center text-sm text-destructive">{error}</p>}
         </div>
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
           <Button type="submit" onClick={handleSubmit} disabled={!teamAId || !teamBId}>Create Match</Button>
         </DialogFooter>
       </DialogContent>

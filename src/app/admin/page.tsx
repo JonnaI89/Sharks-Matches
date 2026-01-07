@@ -32,7 +32,6 @@ import type { Match } from "@/lib/types";
 
 export default function AdminDashboard() {
   const { matches, teams, players, addMatch, deleteMatch, tournaments } = useAdminData();
-  const [isCreateMatchDialogOpen, setIsCreateMatchDialogOpen] = useState(false);
 
   const statusColors: Record<string, string> = {
     live: "bg-red-500 text-white",
@@ -60,10 +59,17 @@ export default function AdminDashboard() {
               Select a match to manage live data, or create a new one.
             </CardDescription>
           </div>
-          <Button onClick={() => setIsCreateMatchDialogOpen(true)}>
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Create Match
-          </Button>
+          <CreateMatchDialog
+            teams={Object.values(teams)}
+            players={players}
+            tournaments={tournaments}
+            onAddMatch={handleAddMatch}
+          >
+            <Button>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Create Match
+            </Button>
+          </CreateMatchDialog>
         </CardHeader>
         <CardContent>
           <Table>
@@ -125,14 +131,6 @@ export default function AdminDashboard() {
           </Table>
         </CardContent>
       </Card>
-      <CreateMatchDialog
-        open={isCreateMatchDialogOpen}
-        onOpenChange={setIsCreateMatchDialogOpen}
-        teams={Object.values(teams)}
-        players={players}
-        tournaments={tournaments}
-        onAddMatch={handleAddMatch}
-      />
     </>
   );
 }
