@@ -123,8 +123,8 @@ export default function AdminMatchPage() {
     let newMatch = JSON.parse(JSON.stringify(match));
     newMatch.time = displayTime;
 
-    const concedingTeamId = teamId === newMatch.teamA.id ? match.teamB.id : match.teamA.id;
-    const concedingGoalieId = concedingTeamId === match.teamA.id ? match.activeGoalieAId : match.activeGoalieBId;
+    const concedingTeamId = teamId === newMatch.teamA.id ? newMatch.teamB.id : newMatch.teamA.id;
+    const concedingGoalieId = concedingTeamId === newMatch.teamA.id ? newMatch.activeGoalieAId : newMatch.activeGoalieBId;
 
     const newGoalEvent: GoalEvent = {
         id: `e${newMatch.events.length + 1}`, type: 'goal', teamId, scorer, assist, time: newMatch.time, period: newMatch.period,
