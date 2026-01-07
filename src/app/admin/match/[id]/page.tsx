@@ -127,9 +127,13 @@ export default function AdminMatchPage() {
     const concedingGoalieId = concedingTeamId === newMatch.teamA.id ? newMatch.activeGoalieAId : newMatch.activeGoalieBId;
 
     const newGoalEvent: GoalEvent = {
-        id: `e${newMatch.events.length + 1}`, type: 'goal', teamId, scorer, assist, time: newMatch.time, period: newMatch.period,
+        id: `e${newMatch.events.length + 1}`, type: 'goal', teamId, scorer, time: newMatch.time, period: newMatch.period,
         concedingGoalieId: concedingGoalieId || null,
     };
+    if (assist) {
+      newGoalEvent.assist = assist;
+    }
+
     newMatch.events.push(newGoalEvent);
 
     if (teamId === newMatch.teamA.id) newMatch.scoreA += 1;
@@ -429,3 +433,5 @@ export default function AdminMatchPage() {
     </div>
   );
 }
+
+    

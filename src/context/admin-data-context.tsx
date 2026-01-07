@@ -39,7 +39,7 @@ const sanitizeMatchForFirebase = (match: Match | Omit<Match, 'id'>) => {
         const newEvent = { ...event };
         if (newEvent.type === 'goal') {
             newEvent.scorer = { id: newEvent.scorer.id };
-            if (newEvent.assist) { // Check if assist exists before trying to access its id
+            if (newEvent.assist) {
                 newEvent.assist = { id: newEvent.assist.id };
             }
         } else if (newEvent.type === 'penalty') {
@@ -389,3 +389,5 @@ export function useAdminData() {
     }
     return context;
 }
+
+    
