@@ -140,7 +140,7 @@ export function CreateMatchDialog({ open, onOpenChange, teams, players, tourname
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Create New Match</DialogTitle>
           <DialogDescription>
